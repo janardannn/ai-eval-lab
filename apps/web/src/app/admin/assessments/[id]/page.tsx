@@ -14,6 +14,7 @@ interface Assessment {
   introConfig: { questions: string[]; adaptive: boolean; maxQuestions: number };
   domainConfig: { questions: string[]; adaptive: boolean; maxQuestions: number; adaptivePrompt?: string };
   labConfig: { problemStatement: string; rubric: { checkpoints: { name: string; description: string; weight: number; expectedOrder: number }[] } };
+  referenceFile: boolean;
   isActive: boolean;
 }
 
@@ -24,6 +25,7 @@ export default function AssessmentDetailPage() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<Assessment>>({});
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetch(`/api/admin/assessments/${id}`)
@@ -47,6 +49,20 @@ export default function AssessmentDetailPage() {
     setData(await res.json());
     setEditing(false);
     setSaving(false);
+  }
+
+  async function handleRefUpload(file: File) {
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`/api/admin/assessments/${id}/reference`, {
+      method: "POST",
+      body: formData,
+    });
+    if (res.ok) {
+      setData((prev) => prev ? { ...prev, referenceFile: true } : prev);
+    }
+    setUploading(false);
   }
 
   if (!data) return <div className="text-foreground/40">Loading...</div>;
@@ -126,6 +142,36 @@ export default function AssessmentDetailPage() {
                 <span className="text-foreground/50">{c.weight}%</span>
               </div>
             ))}
+          </div>
+
+          <div className="border border-foreground/10 rounded p-4">
+            <h3 className="font-semibold mb-2">Reference File</h3>
+            {data.referenceFile ? (
+              <div className="flex items-center gap-3">
+                <span className="text-foreground/50">Reference .kicad_pcb uploaded</span>
+                <a
+                  href={`/api/admin/assessments/${id}/reference`}
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  Download
+                </a>
+              </div>
+            ) : (
+              <p className="text-foreground/40">No reference file</p>
+            )}
+            <label className="inline-block mt-2 cursor-pointer text-sm text-foreground/50 hover:text-foreground/70">
+              {uploading ? "Uploading..." : "Upload new"}
+              <input
+                type="file"
+                accept=".kicad_pcb"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleRefUpload(f);
+                }}
+              />
+            </label>
           </div>
         </div>
       )}

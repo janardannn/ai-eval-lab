@@ -11,12 +11,27 @@ export async function GET(
 
   const { id } = await params;
 
-  const assessment = await prisma.assessment.findUnique({ where: { id } });
+  const assessment = await prisma.assessment.findUnique({
+    where: { id },
+    select: {
+      id: true, title: true, difficulty: true, description: true,
+      environment: true, timeLimit: true, introConfig: true,
+      domainConfig: true, labConfig: true, isActive: true,
+      createdAt: true, updatedAt: true,
+    },
+  });
   if (!assessment) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
-  return NextResponse.json(assessment);
+  const hasRef = await prisma.assessment.count({
+    where: { id, referenceFile: { not: null } },
+  });
+
+  return NextResponse.json({
+    ...assessment,
+    referenceFile: hasRef > 0,
+  });
 }
 
 export async function PUT(

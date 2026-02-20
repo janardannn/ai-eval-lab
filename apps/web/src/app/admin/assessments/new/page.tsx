@@ -40,6 +40,7 @@ export default function NewAssessmentPage() {
   );
 
   const [problemStatement, setProblemStatement] = useState("");
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [checkpoints, setCheckpoints] = useState<CheckpointDraft[]>([
     { name: "", description: "", weight: 0, expectedOrder: 1 },
   ]);
@@ -102,6 +103,17 @@ export default function NewAssessmentPage() {
       setError(data.error || "Failed to create");
       setSaving(false);
       return;
+    }
+
+    const created = await res.json();
+
+    if (referenceFile && created.id) {
+      const formData = new FormData();
+      formData.append("file", referenceFile);
+      await fetch(`/api/admin/assessments/${created.id}/reference`, {
+        method: "POST",
+        body: formData,
+      });
     }
 
     router.push("/admin/assessments");
@@ -233,6 +245,18 @@ export default function NewAssessmentPage() {
             <label className="text-sm text-foreground/60 block mb-1">Problem Statement</label>
             <textarea value={problemStatement} onChange={(e) => setProblemStatement(e.target.value)}
               rows={4} className="w-full p-2 border border-foreground/15 rounded bg-background text-sm resize-none" />
+          </div>
+          <div>
+            <label className="text-sm text-foreground/60 block mb-1">Reference File (.kicad_pcb)</label>
+            <input
+              type="file"
+              accept=".kicad_pcb"
+              onChange={(e) => setReferenceFile(e.target.files?.[0] || null)}
+              className="w-full text-sm text-foreground/60 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:border-foreground/15 file:text-sm file:bg-background file:text-foreground/70 hover:file:bg-foreground/5"
+            />
+            {referenceFile && (
+              <p className="text-xs text-foreground/40 mt-1">{referenceFile.name} ({(referenceFile.size / 1024).toFixed(1)} KB)</p>
+            )}
           </div>
           <div>
             <div className="flex items-center justify-between mb-2">
