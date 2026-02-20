@@ -10,14 +10,16 @@ export function StartExamButton({ taskId }: { taskId: string }) {
   async function handleStart() {
     setLoading(true);
 
-    // TODO: replace with real userId from auth
-    const userId = "demo-user";
-
     const res = await fetch("/api/session/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, taskId }),
+      body: JSON.stringify({ taskId }),
     });
+
+    if (res.status === 401) {
+      router.push(`/login?callbackUrl=/lab/kicad/${taskId}`);
+      return;
+    }
 
     const data = await res.json();
 

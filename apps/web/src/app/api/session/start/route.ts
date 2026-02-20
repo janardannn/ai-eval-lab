@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
   setSessionState,
@@ -11,17 +12,23 @@ import { startKicadContainer, waitForContainer } from "@/lib/docker";
 const MAX_CONTAINERS = parseInt(process.env.MAX_CONTAINERS || "3");
 
 export async function POST(req: NextRequest) {
-  const { userId, taskId } = await req.json();
-
-  if (!userId || !taskId) {
-    return NextResponse.json({ error: "missing userId or taskId" }, { status: 400 });
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const session = await prisma.session.create({
+  const { taskId } = await req.json();
+  if (!taskId) {
+    return NextResponse.json({ error: "missing taskId" }, { status: 400 });
+  }
+
+  const userId = session.user.id;
+
+  const examSession = await prisma.session.create({
     data: { userId, taskId, status: "queued" },
   });
 
-  await setSessionState(session.id, {
+  await setSessionState(examSession.id, {
     userId,
     taskId,
     phase: "queued",
@@ -32,10 +39,10 @@ export async function POST(req: NextRequest) {
   const activeCount = await getActiveContainerCount();
 
   if (activeCount < MAX_CONTAINERS) {
-    await setSessionState(session.id, { status: "provisioning" });
+    await setSessionState(examSession.id, { status: "provisioning" });
 
     try {
-      const { containerId, containerUrl } = await startKicadContainer(session.id);
+      const { containerId, containerUrl } = await startKicadContainer(examSession.id);
       const ready = await waitForContainer(containerUrl);
 
       if (!ready) {
@@ -45,26 +52,26 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      await setContainerMapping(containerId, session.id);
-      await setSessionState(session.id, {
+      await setContainerMapping(containerId, examSession.id);
+      await setSessionState(examSession.id, {
         status: "ready",
         phase: "intro",
         containerId,
         containerUrl,
       });
       await prisma.session.update({
-        where: { id: session.id },
+        where: { id: examSession.id },
         data: { status: "active", containerId, startedAt: new Date() },
       });
 
-      return NextResponse.json({ sessionId: session.id, status: "ready" });
+      return NextResponse.json({ sessionId: examSession.id, status: "ready" });
     } catch (err) {
       console.error("container provisioning failed:", err);
-      await addToQueue(session.id);
-      return NextResponse.json({ sessionId: session.id, status: "queued" });
+      await addToQueue(examSession.id);
+      return NextResponse.json({ sessionId: examSession.id, status: "queued" });
     }
   }
 
-  await addToQueue(session.id);
-  return NextResponse.json({ sessionId: session.id, status: "queued" });
+  await addToQueue(examSession.id);
+  return NextResponse.json({ sessionId: examSession.id, status: "queued" });
 }

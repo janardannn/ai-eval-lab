@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { UserNav } from "@/components/UserNav";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,6 +28,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <header className="h-14 border-b border-foreground/10 flex items-center justify-between px-6">
+          <a href="/" className="text-sm font-semibold">
+            ai-eval-lab
+          </a>
+          <UserNav />
+        </header>
         {children}
       </body>
     </html>
