@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { StartExamButton } from "./start-button";
 
+export const dynamic = "force-dynamic";
+
 export default async function TaskDetailPage({
   params,
 }: {

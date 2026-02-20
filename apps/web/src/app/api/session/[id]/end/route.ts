@@ -23,7 +23,7 @@ export async function POST(
       );
       await prisma.session.update({
         where: { id },
-        data: { finalFile: fileBuffer },
+        data: { finalFile: new Uint8Array(fileBuffer) },
       });
     } catch (err) {
       console.error("failed to extract final file:", err);

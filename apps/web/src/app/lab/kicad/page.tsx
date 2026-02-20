@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 const difficultyOrder = { easy: 0, medium: 1, hard: 2 };
 const difficultyColors: Record<string, string> = {
   easy: "text-green-600",
