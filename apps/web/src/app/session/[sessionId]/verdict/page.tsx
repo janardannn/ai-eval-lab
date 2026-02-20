@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
@@ -32,15 +32,34 @@ export default function VerdictPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [report, setReport] = useState<GradeReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const attempts = useRef(0);
 
   useEffect(() => {
     async function poll() {
-      const res = await fetch(`/api/grader/${sessionId}/report`);
-      if (res.ok) {
-        setReport(await res.json());
-        setLoading(false);
-      } else {
-        // Still grading — retry
+      try {
+        const res = await fetch(`/api/grader/${sessionId}/report`);
+        if (res.ok) {
+          setReport(await res.json());
+          setLoading(false);
+          return;
+        }
+
+        attempts.current++;
+        if (attempts.current > 40) {
+          setError("Grading is taking longer than expected. Please try refreshing later.");
+          setLoading(false);
+          return;
+        }
+
+        setTimeout(poll, 3000);
+      } catch {
+        attempts.current++;
+        if (attempts.current > 40) {
+          setError("Failed to connect to the server.");
+          setLoading(false);
+          return;
+        }
         setTimeout(poll, 3000);
       }
     }
@@ -52,7 +71,26 @@ export default function VerdictPage() {
       <main className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-foreground/60">Evaluating your performance...</p>
+          <p className="text-foreground/60 mb-1">Evaluating your performance...</p>
+          <p className="text-xs text-foreground/30">
+            The AI is reviewing your work, Q&A responses, and timeline
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-foreground/60 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-foreground text-background text-sm rounded hover:opacity-90"
+          >
+            Retry
+          </button>
         </div>
       </main>
     );
@@ -73,20 +111,26 @@ export default function VerdictPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
-        {/* Checkpoint scores */}
         <section>
           <h2 className="text-xl font-semibold mb-4">Checkpoint Scores</h2>
           <div className="grid gap-3">
             {Object.entries(report.checkpointScores).map(([name, score]) => (
               <div key={name} className="flex justify-between items-center p-3 rounded border border-foreground/10">
                 <span className="text-sm capitalize">{name.replace(/_/g, " ")}</span>
-                <span className="font-mono font-medium">{score}/10</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-1.5 bg-foreground/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-foreground/60 rounded-full"
+                      style={{ width: `${(score / 10) * 100}%` }}
+                    />
+                  </div>
+                  <span className="font-mono font-medium text-sm w-10 text-right">{score}/10</span>
+                </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Timeline analysis */}
         <section>
           <h2 className="text-xl font-semibold mb-3">Timeline Analysis</h2>
           <p className="text-sm text-foreground/70 leading-relaxed whitespace-pre-wrap">
@@ -94,7 +138,6 @@ export default function VerdictPage() {
           </p>
         </section>
 
-        {/* Q&A analysis */}
         <section>
           <h2 className="text-xl font-semibold mb-3">Q&A Evaluation</h2>
           <p className="text-sm text-foreground/70 leading-relaxed whitespace-pre-wrap">
@@ -102,7 +145,6 @@ export default function VerdictPage() {
           </p>
         </section>
 
-        {/* Overall report */}
         <section>
           <h2 className="text-xl font-semibold mb-3">Overall Report</h2>
           <p className="text-sm text-foreground/70 leading-relaxed whitespace-pre-wrap">
