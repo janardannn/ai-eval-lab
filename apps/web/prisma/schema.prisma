@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  sessions  Session[]
+  createdAt DateTime  @default(now())
+}
+
+model Task {
+  id            String    @id @default(cuid())
+  title         String
+  difficulty    String
+  description   String    @db.Text
+  timeLimit     Int
+  referenceFile Bytes?
+  rubric        Json
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+}
+
+model Session {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  taskId      String
+  task        Task       @relation(fields: [taskId], references: [id])
+  status      String     @default("queued")
+  containerId String?
+  finalFile   Bytes?
+  snapshots   Snapshot[]
+  qaPairs     QAPair[]
+  grade       Grade?
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime   @default(now())
+}
+
+model Snapshot {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  timestamp Float
+  data      Json
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, timestamp])
+}
+
+model QAPair {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  phase     String
+  question  String   @db.Text
+  answer    String   @db.Text
+  eval      Json?
+  timestamp Float
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, timestamp])
+}
+
+model Grade {
+  id               String   @id @default(cuid())
+  sessionId        String   @unique
+  session          Session  @relation(fields: [sessionId], references: [id])
+  verdict          String
+  checkpointScores Json
+  timelineAnalysis String   @db.Text
+  qaAnalysis       String   @db.Text
+  overallReport    String   @db.Text
+  createdAt        DateTime @default(now())
+}
