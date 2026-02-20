@@ -11,7 +11,7 @@ export async function POST(
 
   const session = await prisma.session.findUnique({
     where: { id: sessionId },
-    include: { task: true },
+    include: { assessment: true },
   });
 
   if (!session) {
@@ -28,9 +28,10 @@ export async function POST(
     orderBy: { timestamp: "asc" },
   });
 
-  const rubric = session.task.rubric as {
-    checkpoints: { name: string; description: string; weight: number }[];
+  const labConfig = session.assessment.labConfig as unknown as {
+    rubric: { checkpoints: { name: string; description: string; weight: number }[] };
   };
+  const rubric = labConfig.rubric;
 
   const result = await gradeSession(
     snapshots.map((s) => ({

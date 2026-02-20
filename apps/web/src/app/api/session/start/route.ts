@@ -17,20 +17,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { taskId } = await req.json();
-  if (!taskId) {
-    return NextResponse.json({ error: "missing taskId" }, { status: 400 });
+  const { assessmentId } = await req.json();
+  if (!assessmentId) {
+    return NextResponse.json({ error: "missing assessmentId" }, { status: 400 });
   }
 
   const userId = session.user.id;
 
   const examSession = await prisma.session.create({
-    data: { userId, taskId, status: "queued" },
+    data: { userId, assessmentId, status: "queued" },
   });
 
   await setSessionState(examSession.id, {
     userId,
-    taskId,
+    assessmentId,
     phase: "queued",
     status: "queued",
     startTime: new Date().toISOString(),

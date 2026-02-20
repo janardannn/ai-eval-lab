@@ -13,7 +13,7 @@ const SESSION_TTL = 7200; // 2 hours
 
 export interface SessionState {
   userId: string;
-  taskId: string;
+  assessmentId: string;
   phase: "queued" | "intro" | "domain" | "lab" | "grading" | "graded";
   status: "queued" | "provisioning" | "ready" | "active" | "completed";
   startTime: string;

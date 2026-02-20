@@ -49,7 +49,7 @@ async function generateNudge(
 ): Promise<NudgeResult> {
   const session = await prisma.session.findUnique({
     where: { id: sessionId },
-    include: { task: { select: { title: true, description: true } } },
+    include: { assessment: { select: { title: true, description: true } } },
   });
 
   if (!session) return { shouldNudge: false };
@@ -61,7 +61,7 @@ async function generateNudge(
 
   const message = await chatCompletion(
     `You are an AI exam proctor. Generate a brief, encouraging nudge (1-2 sentences) for a student taking a PCB design assessment. Do NOT give hints, solutions, or specific guidance about the task. Be conversational and supportive.`,
-    `Task: ${session.task.title} — ${session.task.description}\n\n${prompts[reason]}`
+    `Task: ${session.assessment.title} — ${session.assessment.description}\n\n${prompts[reason]}`
   );
 
   await redis.set(`nudge_cooldown:${sessionId}`, "1", "EX", NUDGE_COOLDOWN);

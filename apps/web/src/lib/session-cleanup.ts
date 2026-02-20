@@ -36,7 +36,7 @@ export async function cleanupSession(sessionId: string) {
 export async function checkDeadSessions() {
   const activeSessions = await prisma.session.findMany({
     where: { status: "active" },
-    select: { id: true, taskId: true, startedAt: true, task: { select: { timeLimit: true } } },
+    select: { id: true, assessmentId: true, startedAt: true, assessment: { select: { timeLimit: true } } },
   });
 
   for (const session of activeSessions) {
@@ -49,9 +49,9 @@ export async function checkDeadSessions() {
     }
 
     // Check time limit
-    if (session.startedAt && session.task.timeLimit) {
+    if (session.startedAt && session.assessment.timeLimit) {
       const elapsed = (Date.now() - session.startedAt.getTime()) / 1000;
-      if (elapsed > session.task.timeLimit) {
+      if (elapsed > session.assessment.timeLimit) {
         console.log(`session ${session.id}: time limit exceeded, cleaning up`);
         await cleanupSession(session.id);
       }

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function StartExamButton({ taskId }: { taskId: string }) {
+export function StartExamButton({ assessmentId }: { assessmentId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -13,11 +13,11 @@ export function StartExamButton({ taskId }: { taskId: string }) {
     const res = await fetch("/api/session/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskId }),
+      body: JSON.stringify({ assessmentId }),
     });
 
     if (res.status === 401) {
-      router.push(`/login?callbackUrl=/lab/kicad/${taskId}`);
+      router.push(`/login?callbackUrl=/lab/kicad/${assessmentId}`);
       return;
     }
 

@@ -10,19 +10,20 @@ const difficultyColors: Record<string, string> = {
   hard: "text-red-600",
 };
 
-export default async function KicadTasksPage() {
-  const tasks = await prisma.task.findMany({
+export default async function KicadAssessmentsPage() {
+  const assessments = await prisma.assessment.findMany({
+    where: { isActive: true, environment: "kicad" },
     select: { id: true, title: true, difficulty: true, description: true, timeLimit: true },
     orderBy: { createdAt: "asc" },
   });
 
-  const grouped = tasks.reduce(
-    (acc, task) => {
-      acc[task.difficulty] = acc[task.difficulty] || [];
-      acc[task.difficulty].push(task);
+  const grouped = assessments.reduce(
+    (acc, item) => {
+      acc[item.difficulty] = acc[item.difficulty] || [];
+      acc[item.difficulty].push(item);
       return acc;
     },
-    {} as Record<string, typeof tasks>
+    {} as Record<string, typeof assessments>
   );
 
   const sections = Object.entries(grouped).sort(
@@ -37,32 +38,32 @@ export default async function KicadTasksPage() {
         <Link href="/" className="text-sm text-foreground/40 hover:text-foreground/60 mb-8 block">
           &larr; Back
         </Link>
-        <h1 className="text-3xl font-bold mb-2">KiCad Labs</h1>
+        <h1 className="text-3xl font-bold mb-2">KiCad Assessments</h1>
         <p className="text-foreground/60 mb-10">
-          PCB design challenges. Choose a task and prove your skills.
+          PCB design challenges. Choose an assessment and prove your skills.
         </p>
 
-        {sections.map(([difficulty, tasks]) => (
+        {sections.map(([difficulty, items]) => (
           <div key={difficulty} className="mb-10">
             <h2 className={`text-lg font-semibold capitalize mb-4 ${difficultyColors[difficulty] || ""}`}>
               {difficulty}
             </h2>
             <div className="grid gap-3">
-              {tasks.map((task) => (
+              {items.map((item) => (
                 <Link
-                  key={task.id}
-                  href={`/lab/kicad/${task.id}`}
+                  key={item.id}
+                  href={`/lab/kicad/${item.id}`}
                   className="block p-5 rounded-lg border border-foreground/15 hover:border-foreground/30 hover:bg-foreground/5 transition-colors"
                 >
                   <div className="flex justify-between items-start">
                     <div>
-                      <h3 className="font-medium">{task.title}</h3>
+                      <h3 className="font-medium">{item.title}</h3>
                       <p className="text-sm text-foreground/50 mt-1 line-clamp-2">
-                        {task.description}
+                        {item.description}
                       </p>
                     </div>
                     <span className="text-sm text-foreground/40 shrink-0 ml-4">
-                      {Math.round(task.timeLimit / 60)} min
+                      {Math.round(item.timeLimit / 60)} min
                     </span>
                   </div>
                 </Link>
@@ -71,8 +72,8 @@ export default async function KicadTasksPage() {
           </div>
         ))}
 
-        {tasks.length === 0 && (
-          <p className="text-foreground/40">No tasks available yet.</p>
+        {assessments.length === 0 && (
+          <p className="text-foreground/40">No assessments available yet.</p>
         )}
       </div>
     </main>

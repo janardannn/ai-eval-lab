@@ -15,6 +15,7 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
+  isAdmin       Boolean   @default(false)
   accounts      Account[]
   authSessions  AuthSession[]
   sessions      Session[]
@@ -58,33 +59,41 @@ model VerificationToken {
 
 // App models
 
-model Task {
+model Assessment {
   id            String    @id @default(cuid())
   title         String
   difficulty    String
   description   String    @db.Text
+  environment   String    @default("kicad")
   timeLimit     Int
+  introConfig   Json
+  domainConfig  Json
+  labConfig     Json
   referenceFile Bytes?
-  rubric        Json
+  isActive      Boolean   @default(true)
   sessions      Session[]
   createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model Session {
-  id          String     @id @default(cuid())
-  userId      String
-  user        User       @relation(fields: [userId], references: [id])
-  taskId      String
-  task        Task       @relation(fields: [taskId], references: [id])
-  status      String     @default("queued")
-  containerId String?
-  finalFile   Bytes?
-  snapshots   Snapshot[]
-  qaPairs     QAPair[]
-  grade       Grade?
-  startedAt   DateTime?
-  endedAt     DateTime?
-  createdAt   DateTime   @default(now())
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  assessmentId  String
+  assessment    Assessment  @relation(fields: [assessmentId], references: [id])
+  status        String      @default("queued")
+  containerId   String?
+  finalFile     Bytes?
+  snapshots     Snapshot[]
+  qaPairs       QAPair[]
+  grade         Grade?
+  adminOverride String?
+  adminNotes    String?     @db.Text
+  startedAt     DateTime?
+  endedAt       DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
 
 model Snapshot {
