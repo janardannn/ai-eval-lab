@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSessionState, setSessionState, removeContainerMapping, popFromQueue } from "@/lib/redis";
+import {
+  redis,
+  getSessionState,
+  setSessionState,
+  removeContainerMapping,
+  popFromQueue,
+} from "@/lib/redis";
 import { stopContainer, extractFile } from "@/lib/docker";
 
 export async function POST(
@@ -14,7 +20,6 @@ export async function POST(
     return NextResponse.json({ error: "session not found" }, { status: 404 });
   }
 
-  // Extract final file before teardown
   if (state.containerId) {
     try {
       const fileBuffer = await extractFile(
@@ -43,11 +48,16 @@ export async function POST(
   });
 
   await setSessionState(id, { status: "completed", phase: "grading" });
+  await redis.del(`heartbeat:${id}`);
 
-  // Free capacity — try to provision next queued session
+  // Trigger grading async
+  fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/grader/${id}`, {
+    method: "POST",
+  }).catch((err) => console.error("failed to trigger grader:", err));
+
+  // Free capacity for next queued session
   const nextSessionId = await popFromQueue();
   if (nextSessionId) {
-    // Fire and forget — the queue handler will provision
     fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/session/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

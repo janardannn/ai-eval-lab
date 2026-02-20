@@ -5,18 +5,22 @@ import { useParams, useRouter } from "next/navigation";
 import { Timer } from "@/components/Timer";
 import { AIProctor } from "@/components/AIProctor";
 import { VNCViewer } from "@/components/VNCViewer";
+import { useHeartbeat } from "@/hooks/useHeartbeat";
 
 interface SessionStatus {
   phase: string;
   status: string;
   containerUrl?: string;
+  timeLimit?: number;
+  taskDescription?: string;
 }
 
 export default function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const router = useRouter();
   const [session, setSession] = useState<SessionStatus | null>(null);
-  const [timeLimit, setTimeLimit] = useState<number>(1800);
+
+  useHeartbeat(sessionId);
 
   const fetchStatus = useCallback(async () => {
     const res = await fetch(`/api/session/${sessionId}/status`);
@@ -39,10 +43,6 @@ export default function SessionPage() {
     router.push(`/session/${sessionId}/verdict`);
   }
 
-  async function handleTimeUp() {
-    await handleSubmit();
-  }
-
   if (!session) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-background">
@@ -51,7 +51,6 @@ export default function SessionPage() {
     );
   }
 
-  // Intro phase: full-page AI persona
   if (session.phase === "intro") {
     return (
       <main className="min-h-screen bg-background">
@@ -62,7 +61,6 @@ export default function SessionPage() {
     );
   }
 
-  // Domain phase: split panel — AI left, reference right
   if (session.phase === "domain") {
     return (
       <main className="min-h-screen bg-background flex">
@@ -76,12 +74,11 @@ export default function SessionPage() {
     );
   }
 
-  // Lab phase: noVNC iframe + AI proctor sidebar + timer
   return (
     <main className="h-screen bg-background flex flex-col">
       <div className="h-12 border-b border-foreground/10 flex items-center justify-between px-4 shrink-0">
         <span className="text-sm font-medium">Lab Session</span>
-        <Timer seconds={timeLimit} onTimeUp={handleTimeUp} />
+        <Timer seconds={session.timeLimit || 1800} onTimeUp={handleSubmit} />
         <button
           onClick={handleSubmit}
           className="px-4 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
@@ -92,6 +89,14 @@ export default function SessionPage() {
 
       <div className="flex flex-1 min-h-0">
         <div className="w-[30%] p-4 border-r border-foreground/10 overflow-y-auto">
+          {session.taskDescription && (
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold mb-2">Task</h3>
+              <p className="text-sm text-foreground/60 leading-relaxed">
+                {session.taskDescription}
+              </p>
+            </div>
+          )}
           <AIProctor sessionId={sessionId} phase="lab" onPhaseComplete={fetchStatus} />
         </div>
         <div className="w-[70%]">
