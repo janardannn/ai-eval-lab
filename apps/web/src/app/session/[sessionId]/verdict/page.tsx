@@ -103,28 +103,28 @@ export default function VerdictPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <div className={`bg-gradient-to-r ${gradient} py-16`}>
-        <div className="max-w-3xl mx-auto px-6 text-center text-white">
-          <h1 className="text-5xl font-bold mb-2">{label}</h1>
-          <p className="text-white/80">Session complete</p>
+      <div className={`bg-gradient-to-r ${gradient} py-10 sm:py-16`}>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center text-white">
+          <h1 className="text-3xl sm:text-5xl font-bold mb-2">{label}</h1>
+          <p className="text-white/80 text-sm sm:text-base">Session complete</p>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 sm:space-y-8">
         <section>
           <h2 className="text-xl font-semibold mb-4">Checkpoint Scores</h2>
           <div className="grid gap-3">
             {Object.entries(report.checkpointScores).map(([name, score]) => (
-              <div key={name} className="flex justify-between items-center p-3 rounded border border-foreground/10">
+              <div key={name} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-0 p-3 rounded border border-foreground/10">
                 <span className="text-sm capitalize">{name.replace(/_/g, " ")}</span>
                 <div className="flex items-center gap-3">
-                  <div className="w-24 h-1.5 bg-foreground/10 rounded-full overflow-hidden">
+                  <div className="w-full sm:w-24 h-1.5 bg-foreground/10 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-foreground/60 rounded-full"
                       style={{ width: `${(score / 10) * 100}%` }}
                     />
                   </div>
-                  <span className="font-mono font-medium text-sm w-10 text-right">{score}/10</span>
+                  <span className="font-mono font-medium text-sm w-10 text-right shrink-0">{score}/10</span>
                 </div>
               </div>
             ))}

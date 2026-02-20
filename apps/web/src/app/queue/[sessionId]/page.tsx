@@ -54,8 +54,8 @@ export default function QueuePage() {
   }, [sessionId, router]);
 
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center">
+    <main className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="text-center w-full max-w-md">
         {error ? (
           <>
             <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
