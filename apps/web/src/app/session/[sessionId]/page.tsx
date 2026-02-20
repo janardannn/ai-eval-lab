@@ -6,6 +6,7 @@ import { Timer } from "@/components/Timer";
 import { AIProctor } from "@/components/AIProctor";
 import { VNCViewer } from "@/components/VNCViewer";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
+import { useNudge } from "@/hooks/useNudge";
 
 interface SessionStatus {
   phase: string;
@@ -21,6 +22,7 @@ export default function SessionPage() {
   const [session, setSession] = useState<SessionStatus | null>(null);
 
   useHeartbeat(sessionId);
+  const nudge = useNudge(sessionId, session?.phase === "lab");
 
   const fetchStatus = useCallback(async () => {
     const res = await fetch(`/api/session/${sessionId}/status`);
@@ -89,6 +91,19 @@ export default function SessionPage() {
 
       <div className="flex flex-1 min-h-0">
         <div className="w-[30%] p-4 border-r border-foreground/10 overflow-y-auto">
+          {nudge.message && (
+            <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm text-amber-200">{nudge.message}</p>
+                <button
+                  onClick={nudge.dismiss}
+                  className="text-amber-500/50 hover:text-amber-500 text-xs shrink-0"
+                >
+                  dismiss
+                </button>
+              </div>
+            </div>
+          )}
           {session.taskDescription && (
             <div className="mb-6">
               <h3 className="text-sm font-semibold mb-2">Task</h3>
