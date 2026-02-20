@@ -1,13 +1,25 @@
 services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+
   web:
     build: ../apps/web
-    ports:
-      - "3000:3000"
     env_file:
       - ../apps/web/.env
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/aievallab
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/aievallab
       - REDIS_URL=redis://redis:6379
+      - NODE_ENV=production
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
@@ -27,11 +39,9 @@ services:
     environment:
       POSTGRES_DB: aievallab
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -41,8 +51,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -52,3 +60,5 @@ services:
 
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:
