@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin";
+import { redis } from "@/lib/redis";
 
 export async function GET() {
   const adminCheck = await requireAdmin();
@@ -12,6 +13,7 @@ export async function GET() {
     totalCompleted,
     totalInProgress,
     totalAbandoned,
+    totalInQueue,
     grades,
     sessions,
   ] = await Promise.all([
@@ -20,7 +22,10 @@ export async function GET() {
     prisma.session.count({ where: { status: "completed" } }),
     prisma.session.count({ where: { status: "active" } }),
     prisma.session.count({ where: { status: "abandoned" } }),
-    prisma.grade.findMany({ select: { verdict: true } }),
+    redis.zcard("queue"),
+    prisma.grade.findMany({
+      select: { verdict: true, checkpointScores: true },
+    }),
     prisma.session.findMany({
       where: { status: "completed", startedAt: { not: null }, endedAt: { not: null } },
       select: { startedAt: true, endedAt: true },
@@ -28,8 +33,18 @@ export async function GET() {
   ]);
 
   const verdictDistribution: Record<string, number> = {};
-  for (const g of grades) {
-    verdictDistribution[g.verdict] = (verdictDistribution[g.verdict] || 0) + 1;
+  let avgScore = 0;
+  if (grades.length > 0) {
+    let totalScore = 0;
+    for (const g of grades) {
+      verdictDistribution[g.verdict] = (verdictDistribution[g.verdict] || 0) + 1;
+      const scores = g.checkpointScores as Record<string, number>;
+      const values = Object.values(scores);
+      if (values.length > 0) {
+        totalScore += values.reduce((a, b) => a + b, 0) / values.length;
+      }
+    }
+    avgScore = Math.round((totalScore / grades.length) * 10) / 10;
   }
 
   let avgSessionDuration = 0;
@@ -82,6 +97,8 @@ export async function GET() {
     totalCompleted,
     totalInProgress,
     totalAbandoned,
+    totalInQueue,
+    avgScore,
     avgSessionDuration,
     verdictDistribution,
     completionsPerDay: Object.entries(completionsPerDay)

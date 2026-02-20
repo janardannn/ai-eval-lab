@@ -8,6 +8,8 @@ interface DashboardData {
   totalCompleted: number;
   totalInProgress: number;
   totalAbandoned: number;
+  totalInQueue: number;
+  avgScore: number;
   avgSessionDuration: number;
   verdictDistribution: Record<string, number>;
   completionsPerDay: { date: string; count: number }[];
@@ -69,7 +71,9 @@ export default function AdminDashboard() {
           { label: "Total Sessions", value: data.totalSessions },
           { label: "Completed", value: data.totalCompleted },
           { label: "In Progress", value: data.totalInProgress },
+          { label: "In Queue", value: data.totalInQueue },
           { label: "Abandoned", value: data.totalAbandoned },
+          { label: "Avg Score", value: data.avgScore || "—" },
           { label: "Avg Duration", value: `${Math.round(data.avgSessionDuration / 60)}m` },
         ].map((stat) => (
           <div key={stat.label} className="border border-foreground/10 rounded-lg p-4">
