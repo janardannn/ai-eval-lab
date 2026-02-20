@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { setSessionState } from "@/lib/redis";
 import { gradeSession } from "@/lib/grader";
+import { sendCompletionEmail } from "@/lib/email";
 
 export async function POST(
   _req: NextRequest,
@@ -11,7 +12,10 @@ export async function POST(
 
   const session = await prisma.session.findUnique({
     where: { id: sessionId },
-    include: { assessment: true },
+    include: {
+      assessment: true,
+      user: { select: { email: true, name: true } },
+    },
   });
 
   if (!session) {
@@ -58,6 +62,14 @@ export async function POST(
   });
 
   await setSessionState(sessionId, { phase: "graded" });
+
+  sendCompletionEmail(
+    session.user.email!,
+    session.user.name,
+    session.assessment.title,
+    sessionId,
+    result.verdict
+  ).catch(() => {});
 
   return NextResponse.json({ status: "graded", verdict: result.verdict });
 }
