@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSessionState } from "@/lib/redis";
+import { getSessionState, setPendingQuestion } from "@/lib/redis";
 import { chatCompletion } from "@/lib/ai";
 import { textToSpeech } from "@/lib/tts";
 
@@ -51,6 +51,8 @@ export async function POST(
   } else {
     return NextResponse.json({ error: "not in Q&A phase" }, { status: 400 });
   }
+
+  await setPendingQuestion(sessionId, questionText);
 
   let audioBase64: string | null = null;
   try {

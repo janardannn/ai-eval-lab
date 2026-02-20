@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSessionState, setSessionState } from "@/lib/redis";
+import { getSessionState, setSessionState, getPendingQuestion, setPendingQuestion } from "@/lib/redis";
 import { speechToText } from "@/lib/stt";
 import { jsonCompletion } from "@/lib/ai";
+import { textToSpeech } from "@/lib/tts";
 
 const MAX_DOMAIN_QUESTIONS = 5;
 
@@ -33,18 +34,14 @@ export async function POST(
     return NextResponse.json({ error: "no transcript" }, { status: 400 });
   }
 
-  // Get the last question asked (most recent QA pair or last generated question)
-  const lastQA = await prisma.qAPair.findFirst({
-    where: { sessionId },
-    orderBy: { timestamp: "desc" },
-  });
+  const pendingQ = await getPendingQuestion(sessionId);
+  const question = pendingQ || "unknown question";
 
-  // Store Q&A pair
   await prisma.qAPair.create({
     data: {
       sessionId,
       phase: state.phase,
-      question: lastQA?.question || "initial question",
+      question,
       answer: transcript,
       timestamp: Date.now() / 1000,
     },
@@ -97,8 +94,23 @@ export async function POST(
     return NextResponse.json({ eval: "done", nextPhase: "lab" });
   }
 
-  return NextResponse.json({
-    eval: evalResult.action,
-    followUp: evalResult.followUp,
-  });
+  if (evalResult.action === "probe" && evalResult.followUp) {
+    await setPendingQuestion(sessionId, evalResult.followUp);
+
+    let audioBase64: string | null = null;
+    try {
+      const audioBuffer = await textToSpeech(evalResult.followUp);
+      audioBase64 = audioBuffer.toString("base64");
+    } catch {
+      // TTS failed — text-only fallback
+    }
+
+    return NextResponse.json({
+      eval: "probe",
+      followUp: evalResult.followUp,
+      audio: audioBase64,
+    });
+  }
+
+  return NextResponse.json({ eval: "next" });
 }

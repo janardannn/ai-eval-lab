@@ -67,3 +67,13 @@ export async function setContainerMapping(
 export async function removeContainerMapping(containerId: string) {
   await redis.del(`container:${containerId}`);
 }
+
+export async function setPendingQuestion(sessionId: string, question: string) {
+  await redis.set(`pending_q:${sessionId}`, question, "EX", 600);
+}
+
+export async function getPendingQuestion(
+  sessionId: string
+): Promise<string | null> {
+  return redis.get(`pending_q:${sessionId}`);
+}
