@@ -61,17 +61,18 @@ export async function POST(
   }
 
   // Domain phase — evaluate answer and decide probe vs next
-  const evalResult = await jsonCompletion<{
-    action: "probe" | "next" | "done";
-    followUp?: string;
-    score?: number;
-  }>(
-    `You evaluate technical answers in a PCB design interview. Return JSON with:
+  let evalResult: { action: "probe" | "next" | "done"; followUp?: string; score?: number };
+  try {
+    evalResult = await jsonCompletion<typeof evalResult>(
+      `You evaluate technical answers in a PCB design interview. Return JSON with:
 - action: "probe" if the answer needs clarification, "next" to move on, "done" if enough questions asked
 - followUp: a follow-up question if action is "probe"
 - score: 1-10 rating of the answer quality`,
-    `Answer: "${transcript}"\n\nIs this answer sufficient or should we probe deeper?`
-  );
+      `Answer: "${transcript}"\n\nIs this answer sufficient or should we probe deeper?`
+    );
+  } catch {
+    evalResult = { action: "next", score: 5 };
+  }
 
   // Update the QA pair with eval
   const latestQA = await prisma.qAPair.findFirst({

@@ -68,10 +68,14 @@ export async function POST(
       const systemPrompt = domainConfig.adaptivePrompt ||
         `You are a technical interviewer for a PCB design assessment. Generate one focused technical question based on the task and prior answers. Be conversational but probing.`;
 
-      questionText = await chatCompletion(
-        systemPrompt,
-        `Assessment: ${session.assessment.title} — ${session.assessment.description}\n\nPrior Q&A:\n${priorContext}\n\nGenerate the next technical question.`
-      );
+      try {
+        questionText = await chatCompletion(
+          systemPrompt,
+          `Assessment: ${session.assessment.title} — ${session.assessment.description}\n\nPrior Q&A:\n${priorContext}\n\nGenerate the next technical question.`
+        );
+      } catch {
+        questionText = domainConfig.questions[domainAsked] || "Can you tell me more about your approach to this problem?";
+      }
     } else {
       questionText = domainConfig.questions[domainAsked] || domainConfig.questions[domainConfig.questions.length - 1];
     }
