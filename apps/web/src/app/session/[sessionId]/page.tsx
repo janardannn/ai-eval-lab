@@ -20,17 +20,27 @@ export default function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const router = useRouter();
   const [session, setSession] = useState<SessionStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useHeartbeat(sessionId);
   const nudge = useNudge(sessionId, session?.phase === "lab");
 
   const fetchStatus = useCallback(async () => {
-    const res = await fetch(`/api/session/${sessionId}/status`);
-    const data = await res.json();
-    setSession(data);
+    try {
+      const res = await fetch(`/api/session/${sessionId}/status`);
+      if (!res.ok) {
+        setError("Failed to load session. Please refresh.");
+        return;
+      }
+      const data = await res.json();
+      setSession(data);
+      setError(null);
 
-    if (data.phase === "grading" || data.phase === "graded") {
-      router.push(`/session/${sessionId}/verdict`);
+      if (data.phase === "grading" || data.phase === "graded") {
+        router.push(`/session/${sessionId}/verdict`);
+      }
+    } catch {
+      setError("Lost connection to server.");
     }
   }, [sessionId, router]);
 
@@ -40,9 +50,31 @@ export default function SessionPage() {
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
+  const [submitting, setSubmitting] = useState(false);
+
   async function handleSubmit() {
-    await fetch(`/api/session/${sessionId}/end`, { method: "POST" });
-    router.push(`/session/${sessionId}/verdict`);
+    setSubmitting(true);
+    try {
+      await fetch(`/api/session/${sessionId}/end`, { method: "POST" });
+      router.push(`/session/${sessionId}/verdict`);
+    } catch {
+      setError("Failed to submit. Please try again.");
+      setSubmitting(false);
+    }
+  }
+
+  if (error) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="text-center">
+          <p className="text-foreground/60 mb-4">{error}</p>
+          <button onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-foreground text-background text-sm rounded hover:opacity-90">
+            Retry
+          </button>
+        </div>
+      </main>
+    );
   }
 
   if (!session) {
@@ -83,9 +115,10 @@ export default function SessionPage() {
         <Timer seconds={session.timeLimit || 1800} onTimeUp={handleSubmit} />
         <button
           onClick={handleSubmit}
-          className="px-4 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+          disabled={submitting}
+          className="px-4 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors disabled:opacity-50"
         >
-          Submit
+          {submitting ? "Submitting..." : "Submit"}
         </button>
       </div>
 
