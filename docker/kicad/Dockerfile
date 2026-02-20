@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     && pip3 install requests \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY telemetry_plugin.py /usr/share/kicad/scripting/plugins/telemetry_plugin.py
+COPY kicad_poller.py /usr/share/kicad/scripting/plugins/kicad_poller.py
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 

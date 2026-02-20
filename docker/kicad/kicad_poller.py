@@ -68,13 +68,13 @@ def poll_loop():
 
             if current_hash != prev_hash:
                 requests.post(
-                    f"{BACKEND_URL}/api/telemetry/{SESSION_ID}/events",
+                    f"{BACKEND_URL}/api/poller/{SESSION_ID}/events",
                     json={"timestamp": time.time(), "snapshot": current},
                     timeout=5,
                 )
                 prev_hash = current_hash
         except Exception as e:
-            print(f"[telemetry_plugin] error: {e}")
+            print(f"[kicad_poller] error: {e}")
 
         time.sleep(POLL_INTERVAL)
 
