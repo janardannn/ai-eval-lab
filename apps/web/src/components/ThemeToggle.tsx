@@ -4,7 +4,7 @@ import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -13,11 +13,11 @@ export function ThemeToggle() {
 
   return (
     <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
       className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-foreground/10 transition-colors"
       aria-label="Toggle theme"
     >
-      {theme === "dark" ? (
+      {resolvedTheme === "dark" ? (
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="5" />
           <line x1="12" y1="1" x2="12" y2="3" />
