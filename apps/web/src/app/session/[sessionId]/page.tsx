@@ -14,6 +14,7 @@ interface SessionStatus {
   containerUrl?: string;
   timeLimit?: number;
   taskDescription?: string;
+  hasReferenceMaterial?: boolean;
 }
 
 export default function SessionPage() {
@@ -98,10 +99,10 @@ export default function SessionPage() {
   if (session.phase === "domain") {
     return (
       <main className="min-h-screen bg-background flex">
-        <div className="w-1/2 p-6 border-r border-foreground/10">
+        <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[70%]"} p-6 border-r border-foreground/10`}>
           <AIProctor sessionId={sessionId} phase="domain" onPhaseComplete={fetchStatus} />
         </div>
-        <div className="w-1/2 p-6 flex items-center justify-center">
+        <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[30%]"} p-6 flex items-center justify-center`}>
           <p className="text-foreground/40">Reference materials will appear here</p>
         </div>
       </main>
