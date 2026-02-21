@@ -1,8 +1,9 @@
 import Docker from "dockerode";
 
-const docker = new Docker({
-  socketPath: process.env.DOCKER_HOST || "/var/run/docker.sock",
-});
+const rawHost = process.env.DOCKER_HOST || "/var/run/docker.sock";
+const socketPath = rawHost.replace(/^unix:\/\//, "");
+
+const docker = new Docker({ socketPath });
 
 const KICAD_IMAGE = process.env.KICAD_IMAGE || "ai-eval-lab-kicad";
 const BACKEND_URL = process.env.NEXT_PUBLIC_APP_URL || "http://web:8080";

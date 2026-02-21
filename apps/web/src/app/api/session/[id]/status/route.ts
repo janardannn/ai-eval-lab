@@ -29,11 +29,12 @@ export async function GET(
   if (state.phase === "lab" || state.phase === "intro" || state.phase === "domain") {
     const session = await prisma.session.findUnique({
       where: { id },
-      include: { assessment: { select: { timeLimit: true, description: true } } },
+      include: { assessment: { select: { timeLimit: true, description: true, referenceFile: true } } },
     });
     if (session) {
       response.timeLimit = session.assessment.timeLimit;
       response.taskDescription = session.assessment.description;
+      response.hasReferenceMaterial = session.assessment.referenceFile !== null;
     }
   }
 
