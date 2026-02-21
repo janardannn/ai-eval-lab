@@ -8,13 +8,7 @@ interface AIProctorProps {
   onPhaseComplete: () => void;
 }
 
-interface QAEntry {
-  question: string;
-  answer?: string;
-}
-
 export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps) {
-  const [qaHistory, setQaHistory] = useState<QAEntry[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -22,13 +16,6 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
   const [hasStarted, setHasStarted] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [qaHistory, currentQuestion]);
 
   function playAudio(base64: string) {
     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
@@ -101,7 +88,6 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
     if (!blob) return;
 
     setIsLoading(true);
-    setQaHistory((prev) => [...prev, { question: currentQuestion, answer: "(audio)" }]);
     setCurrentQuestion(null);
 
     const res = await fetch(`/api/ai/${sessionId}/answer`, {
@@ -119,7 +105,6 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
     if (!transcript.trim() || !currentQuestion) return;
 
     setIsLoading(true);
-    setQaHistory((prev) => [...prev, { question: currentQuestion, answer: transcript }]);
     setTranscript("");
     setCurrentQuestion(null);
 
@@ -164,26 +149,9 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 mb-4">
-        {qaHistory.map((qa, i) => (
-          <div key={i} className="space-y-1.5">
-            <div className="flex gap-2">
-              <span className="text-xs text-foreground/30 mt-0.5 shrink-0">Q</span>
-              <p className="text-sm">{qa.question}</p>
-            </div>
-            {qa.answer && (
-              <div className="flex gap-2 pl-4">
-                <span className="text-xs text-foreground/30 mt-0.5 shrink-0">A</span>
-                <p className="text-sm text-foreground/60">{qa.answer}</p>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
       {currentQuestion && (
-        <div className="border-t border-foreground/10 pt-3">
-          <p className="text-sm font-medium mb-3">{currentQuestion}</p>
+        <div className="flex-1 flex flex-col justify-center mb-4">
+          <p className="text-lg font-medium mb-6 leading-relaxed">{currentQuestion}</p>
 
           <textarea
             value={transcript}

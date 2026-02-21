@@ -16,25 +16,25 @@ async function main() {
       timeLimit: 1800,
       introConfig: {
         questions: [
-          "Tell me about yourself and your background.",
-          "What's your experience with PCB design or electronics?",
-          "What motivated you to take this assessment?",
+          "Tell me a bit about yourself — your name, background, and what you're currently working on or studying.",
+          "How did you first get into electronics or PCB design? Walk me through your journey.",
+          "What are you hoping to demonstrate in this assessment today?",
         ],
         adaptive: false,
         maxQuestions: 3,
       },
       domainConfig: {
         questions: [
-          "What is the purpose of a current limiting resistor in an LED circuit?",
-          "How do you choose the correct resistor value for an LED?",
-          "What happens if you connect an LED without a resistor?",
-          "What is the difference between F.Cu and B.Cu layers?",
-          "How do you verify your routing is correct?",
+          "Can you explain what a current limiting resistor does in an LED circuit, and why it's necessary?",
+          "Walk me through how you'd calculate the right resistor value for an LED given the supply voltage, LED forward voltage, and desired current.",
+          "What would happen electrically if you connected an LED directly to a 5V source without a resistor?",
+          "In KiCad, what's the difference between the F.Cu and B.Cu layers, and when would you route on each?",
+          "After routing a PCB, how do you verify your design is correct before fabrication?",
         ],
         adaptive: true,
         maxQuestions: 5,
         adaptivePrompt:
-          "You are evaluating a candidate's basic PCB design knowledge. Based on their answers, probe deeper on weak areas or advance. Focus on practical understanding.",
+          "You are a technical interviewer evaluating a candidate's understanding of basic PCB design and LED circuits. Ask follow-up questions that test practical understanding, not memorized definitions. If an answer is vague, probe for specifics. If an answer shows strong understanding, move to the next topic.",
       },
       labConfig: {
         problemStatement:
@@ -94,25 +94,25 @@ async function main() {
       timeLimit: 2700,
       introConfig: {
         questions: [
-          "Tell me about yourself and your background.",
-          "What's your experience with PCB design?",
-          "What interests you about electronics?",
+          "Tell me a bit about yourself — your name, what you study or work on, and your experience level with electronics.",
+          "Have you designed a PCB before? If so, describe the most complex board you've worked on.",
+          "What aspects of PCB design do you find most challenging, and why?",
         ],
         adaptive: false,
         maxQuestions: 3,
       },
       domainConfig: {
         questions: [
-          "What is the purpose of a bypass capacitor?",
-          "How do you calculate the value of a current limiting resistor for an LED?",
-          "What's the difference between a ground plane and a ground trace?",
-          "Why does component placement order matter in PCB design?",
-          "What is DRC and when should you run it?",
+          "What is a bypass capacitor, and why do you place them close to IC power pins rather than elsewhere on the board?",
+          "If you have a 5V supply and an LED with a 2V forward voltage that needs 15mA, walk me through the resistor calculation.",
+          "Explain the difference between a ground plane and individual ground traces. When would you use each approach?",
+          "Why does component placement order matter in PCB design? What do you typically place first and why?",
+          "What is DRC in KiCad, what types of errors does it catch, and at what stage of design should you run it?",
         ],
         adaptive: true,
         maxQuestions: 5,
         adaptivePrompt:
-          "You are evaluating a candidate's PCB design knowledge. Based on their previous answers, either probe deeper on weak areas or advance to the next topic. Focus on practical understanding, not textbook definitions.",
+          "You are a technical interviewer evaluating a candidate's PCB design knowledge at an intermediate level. Test practical understanding of power distribution, component placement strategy, and design validation. Probe deeper when answers lack specifics. If the candidate demonstrates strong understanding, advance quickly.",
       },
       labConfig: {
         problemStatement:
