@@ -57,7 +57,7 @@ export async function checkDeadSessions() {
     }
   }
 
-  // Clean up queued sessions older than 5 minutes with no Redis state
+  // Clean up any queued sessions older than 5 minutes
   const staleQueued = await prisma.session.findMany({
     where: {
       status: "queued",
@@ -67,14 +67,12 @@ export async function checkDeadSessions() {
   });
 
   for (const session of staleQueued) {
-    const state = await getSessionState(session.id);
-    if (!state) {
-      console.log(`cleanup: ${session.id} stale queued session`);
-      await prisma.session.update({
-        where: { id: session.id },
-        data: { status: "abandoned", endedAt: new Date() },
-      });
-    }
+    console.log(`cleanup: ${session.id} stale queued session`);
+    await redis.del(`session:${session.id}`);
+    await prisma.session.update({
+      where: { id: session.id },
+      data: { status: "abandoned", endedAt: new Date() },
+    });
   }
 }
 
