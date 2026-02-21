@@ -29,6 +29,7 @@ AI-proctored practical exam platform for engineering tools. Students complete ha
   ▼            ▼
 ┌────────┐  ┌─────────┐
 │Postgres│  │Redis    │
+│        │  │         │
 │Users   │  │Queue    │
 │Sessions│  │State    │
 │Grades  │  │Heartbeat│
