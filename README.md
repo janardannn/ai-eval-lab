@@ -41,8 +41,8 @@ AI-proctored practical exam platform for engineering tools. Students complete ha
 - **Frontend + Backend:** Next.js 16, React, TypeScript, Tailwind CSS
 - **Database:** PostgreSQL 16 (Prisma ORM)
 - **Cache/Queue:** Redis 7 (ioredis)
-- **AI:** OpenAI GPT-4o (grading, Q&A, nudges)
-- **TTS/STT:** ElevenLabs (TTS), Whisper API (STT)
+- **AI:** Google Gemini (grading, Q&A, nudges, STT)
+- **TTS:** ElevenLabs
 - **Containers:** Docker + dockerode (dynamic provisioning)
 - **VNC:** Xvfb + x11vnc + websockify + noVNC
 - **Auth:** NextAuth v5 (GitHub, Google OAuth)
@@ -116,7 +116,7 @@ Caddy automatically provisions HTTPS via Let's Encrypt.
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
 | `REDIS_URL` | Redis connection string |
-| `OPENAI_API_KEY` | OpenAI API key (GPT-4o) |
+| `GEMINI_API_KEY` | Google AI API key (Gemini) |
 | `ELEVENLABS_API_KEY` | ElevenLabs TTS key |
 | `ELEVENLABS_VOICE_ID` | ElevenLabs voice ID |
 | `AUTH_SECRET` | NextAuth secret (`npx auth secret`) |

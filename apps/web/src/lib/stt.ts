@@ -1,14 +1,24 @@
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+const STT_MODEL = process.env.GEMINI_STT_MODEL || "gemini-2.5-flash";
 
 export async function speechToText(audioBuffer: Buffer): Promise<string> {
-  const file = new File([new Uint8Array(audioBuffer)], "audio.webm", { type: "audio/webm" });
+  const base64Audio = audioBuffer.toString("base64");
 
-  const transcription = await openai.audio.transcriptions.create({
-    model: "whisper-1",
-    file,
+  const response = await ai.models.generateContent({
+    model: STT_MODEL,
+    contents: [
+      { text: "Transcribe this audio exactly. Return only the transcript text, nothing else." },
+      {
+        inlineData: {
+          mimeType: "audio/webm",
+          data: base64Audio,
+        },
+      },
+    ],
   });
 
-  return transcription.text;
+  return (response.text ?? "").trim();
 }

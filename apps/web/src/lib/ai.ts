@@ -1,7 +1,8 @@
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const TIMEOUT_MS = 30_000;
 
 export async function chatCompletion(
@@ -13,19 +14,17 @@ export async function chatCompletion(
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const response = await openai.chat.completions.create(
-      {
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: userPrompt,
+      config: {
+        systemInstruction: systemPrompt,
         temperature: options?.temperature ?? 0.3,
-        max_tokens: options?.maxTokens ?? 4096,
+        maxOutputTokens: options?.maxTokens ?? 4096,
+        abortSignal: controller.signal,
       },
-      { signal: controller.signal }
-    );
-    return response.choices[0].message.content || "";
+    });
+    return response.text ?? "";
   } finally {
     clearTimeout(timer);
   }
@@ -39,20 +38,18 @@ export async function jsonCompletion<T>(
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const response = await openai.chat.completions.create(
-      {
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: userPrompt,
+      config: {
+        systemInstruction: systemPrompt,
         temperature: 0.2,
-        max_tokens: 4096,
-        response_format: { type: "json_object" },
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json",
+        abortSignal: controller.signal,
       },
-      { signal: controller.signal }
-    );
-    const content = response.choices[0].message.content || "{}";
+    });
+    const content = response.text ?? "{}";
     return JSON.parse(content) as T;
   } finally {
     clearTimeout(timer);
