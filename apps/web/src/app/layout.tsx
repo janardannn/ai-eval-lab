@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import { UserNav } from "@/components/UserNav";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,17 +26,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <header className="h-14 border-b border-foreground/10 flex items-center justify-between px-6">
-          <a href="/" className="text-sm font-semibold">
-            ai-eval-lab
-          </a>
-          <UserNav />
-        </header>
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          <header className="h-14 border-b border-foreground/10 flex items-center justify-between px-6">
+            <a href="/" className="text-sm font-semibold">
+              ai-eval-lab
+            </a>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <UserNav />
+            </div>
+          </header>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
