@@ -8,8 +8,11 @@ import {
   setContainerMapping,
 } from "@/lib/redis";
 import { startKicadContainer, waitForContainer } from "@/lib/docker";
+import { startAutoCleanup } from "@/lib/session-cleanup";
 
 const MAX_CONTAINERS = parseInt(process.env.MAX_CONTAINERS || "3");
+
+startAutoCleanup();
 
 export async function POST(req: NextRequest) {
   const session = await auth();

@@ -14,6 +14,11 @@ export default function QueuePage() {
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/session/${sessionId}/status`);
+        if (res.status === 404) {
+          setError("This session has expired. Please start a new exam.");
+          clearInterval(interval);
+          return;
+        }
         if (!res.ok) {
           failCount.current++;
           if (failCount.current > 10) {

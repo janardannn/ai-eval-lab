@@ -34,27 +34,59 @@ export async function cleanupSession(sessionId: string) {
 }
 
 export async function checkDeadSessions() {
+  // Clean up active sessions with no heartbeat or exceeded time
   const activeSessions = await prisma.session.findMany({
     where: { status: "active" },
     select: { id: true, assessmentId: true, startedAt: true, assessment: { select: { timeLimit: true } } },
   });
 
   for (const session of activeSessions) {
-    // Check heartbeat
     const lastBeat = await redis.get(`heartbeat:${session.id}`);
     if (!lastBeat) {
-      console.log(`session ${session.id}: no heartbeat, cleaning up`);
+      console.log(`cleanup: ${session.id} no heartbeat`);
       await cleanupSession(session.id);
       continue;
     }
 
-    // Check time limit
     if (session.startedAt && session.assessment.timeLimit) {
       const elapsed = (Date.now() - session.startedAt.getTime()) / 1000;
       if (elapsed > session.assessment.timeLimit) {
-        console.log(`session ${session.id}: time limit exceeded, cleaning up`);
+        console.log(`cleanup: ${session.id} time limit exceeded`);
         await cleanupSession(session.id);
       }
     }
   }
+
+  // Clean up queued sessions older than 5 minutes with no Redis state
+  const staleQueued = await prisma.session.findMany({
+    where: {
+      status: "queued",
+      createdAt: { lt: new Date(Date.now() - 5 * 60 * 1000) },
+    },
+    select: { id: true },
+  });
+
+  for (const session of staleQueued) {
+    const state = await getSessionState(session.id);
+    if (!state) {
+      console.log(`cleanup: ${session.id} stale queued session`);
+      await prisma.session.update({
+        where: { id: session.id },
+        data: { status: "abandoned", endedAt: new Date() },
+      });
+    }
+  }
+}
+
+// Auto-run cleanup every 60 seconds in the server process
+let cleanupStarted = false;
+
+export function startAutoCleanup() {
+  if (cleanupStarted) return;
+  cleanupStarted = true;
+  setInterval(() => {
+    checkDeadSessions().catch((err) =>
+      console.error("auto-cleanup error:", err)
+    );
+  }, 60_000);
 }
