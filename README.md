@@ -10,7 +10,7 @@ AI-proctored practical exam platform for engineering tools. Students complete ha
 │  ┌──────────┐  ┌──────────┐  ┌────────────────────────┐ │
 │  │ AI Panel │  │  noVNC   │  │  Timer + Controls      │ │
 │  │ TTS/STT  │  │ (iframe) │  │                        │ │
-│  └────┬─────┘  └────┬─────┘  └────────────────────────┘ │
+│  └────┬─────┘  └─────┬────┘  └────────────────────────┘ │
 └───────┼──────────────┼──────────────────────────────────┘
         │              │
         ▼              ▼
@@ -25,8 +25,8 @@ AI-proctored practical exam platform for engineering tools. Students complete ha
 │              │  │  poller      │──► POST /api/poller
 └──────┬───────┘  └──────────────┘
        │
-  ┌────┴────┐
-  ▼         ▼
+  ┌────┴───────┐
+  ▼            ▼
 ┌────────┐  ┌─────────┐
 │Postgres│  │Redis    │
 │Users   │  │Queue    │
