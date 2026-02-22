@@ -6,22 +6,26 @@ interface AIProctorProps {
   sessionId: string;
   phase: "intro" | "domain" | "lab";
   onPhaseComplete: () => void;
+  onEndExam?: () => void;
 }
 
-export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps) {
+export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIProctorProps) {
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  function playAudio(base64: string) {
-    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-    const blob = new Blob([bytes], { type: "audio/mpeg" });
-    const audio = new Audio(URL.createObjectURL(blob));
-    audio.play().catch(() => {});
+  function playAudioDelayed(base64: string) {
+    setTimeout(() => {
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: "audio/mpeg" });
+      const audio = new Audio(URL.createObjectURL(blob));
+      audio.play().catch(() => {});
+    }, 1000);
   }
 
   const fetchQuestion = useCallback(async () => {
@@ -36,7 +40,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
       }
 
       setCurrentQuestion(data.question);
-      if (data.audio) playAudio(data.audio);
+      if (data.audio) playAudioDelayed(data.audio);
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +92,6 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
     if (!blob) return;
 
     setIsLoading(true);
-    setCurrentQuestion(null);
 
     const res = await fetch(`/api/ai/${sessionId}/answer`, {
       method: "POST",
@@ -105,7 +108,6 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
 
     setIsLoading(true);
     setTranscript("");
-    setCurrentQuestion(null);
 
     const res = await fetch(`/api/ai/${sessionId}/answer`, {
       method: "POST",
@@ -128,7 +130,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
       onPhaseComplete();
     } else if (data.eval === "probe" && data.followUp) {
       setCurrentQuestion(data.followUp);
-      if (data.audio) playAudio(data.audio);
+      if (data.audio) playAudioDelayed(data.audio);
     } else {
       fetchQuestion();
     }
@@ -136,23 +138,68 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
 
   return (
     <div className="flex flex-col h-full">
-      <div className="mb-6 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-md ring-1 ring-accent/20 bg-accent/10 flex items-center justify-center shrink-0">
-          <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
-          </svg>
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-md ring-1 ring-accent/20 bg-accent/10 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold capitalize">{phase} Phase</h2>
+            <p className="text-xs text-muted-foreground">AI Proctor</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-sm font-semibold capitalize">{phase} Phase</h2>
-          <p className="text-xs text-muted-foreground">AI Proctor</p>
-        </div>
+        {onEndExam && (
+          <button
+            onClick={() => setShowEndConfirm(true)}
+            className="h-8 px-3 text-xs font-medium rounded-md ring-1 ring-destructive/30 text-destructive hover:bg-destructive/10 transition-all duration-75 active:scale-[0.98]"
+          >
+            End Exam
+          </button>
+        )}
       </div>
+
+      {showEndConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card ring-1 ring-border rounded-lg p-6 max-w-sm mx-4 shadow-2xl">
+            <h3 className="text-lg font-semibold mb-2">End Exam?</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              This will end your exam immediately. Your progress so far will be graded. This cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowEndConfirm(false)}
+                className="h-9 px-4 text-sm font-medium rounded-md ring-1 ring-border hover:bg-muted transition-all duration-75 active:scale-[0.98]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowEndConfirm(false);
+                  onEndExam?.();
+                }}
+                className="h-9 px-4 text-sm font-medium rounded-md bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98]"
+              >
+                End Exam
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {currentQuestion && (
         <div className="flex-1 flex flex-col justify-center mb-4">
-          <p className="text-lg font-medium mb-8 leading-relaxed">
-            {currentQuestion}
-          </p>
+          <div className="relative">
+            <p className={`text-lg font-medium mb-8 leading-relaxed transition-opacity duration-200 ${isLoading ? "opacity-50" : ""}`}>
+              {currentQuestion}
+            </p>
+            {isLoading && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <div className="w-5 h-5 border-2 border-border border-t-accent rounded-full animate-spin" />
+              </div>
+            )}
+          </div>
 
           <textarea
             value={transcript}

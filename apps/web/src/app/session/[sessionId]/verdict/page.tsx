@@ -13,11 +13,11 @@ interface GradeReport {
 }
 
 const verdictColors: Record<string, string> = {
-  strong_hire: "from-green-500 to-green-700",
-  hire: "from-green-400 to-green-600",
-  neutral: "from-yellow-400 to-yellow-600",
-  reject: "from-red-400 to-red-600",
-  strong_reject: "from-red-500 to-red-700",
+  strong_hire: "from-green-800/70 to-green-900/70",
+  hire: "from-green-800/60 to-green-900/60",
+  neutral: "from-yellow-800/60 to-yellow-900/60",
+  reject: "from-red-800/60 to-red-900/60",
+  strong_reject: "from-red-800/70 to-red-900/70",
 };
 
 const verdictLabels: Record<string, string> = {
