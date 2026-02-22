@@ -77,3 +77,17 @@ export async function getPendingQuestion(
 ): Promise<string | null> {
   return redis.get(`pending_q:${sessionId}`);
 }
+
+// Probe depth tracking — how many cross-questions remain for current question chain
+export async function getProbeDepth(sessionId: string): Promise<number> {
+  const val = await redis.get(`probe_depth:${sessionId}`);
+  return val === null ? -1 : parseInt(val, 10);
+}
+
+export async function setProbeDepth(sessionId: string, depth: number) {
+  await redis.set(`probe_depth:${sessionId}`, depth.toString(), "EX", 600);
+}
+
+export async function clearProbeDepth(sessionId: string) {
+  await redis.del(`probe_depth:${sessionId}`);
+}
