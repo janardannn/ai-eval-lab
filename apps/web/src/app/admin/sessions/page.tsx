@@ -42,6 +42,12 @@ export default function AdminSessionsPage() {
     setLoading(false);
   }, [page, filters]);
 
+  async function endSession(id: string) {
+    if (!confirm("End this session? This will stop the container and mark it as abandoned.")) return;
+    await fetch(`/api/admin/sessions/${id}`, { method: "DELETE" });
+    load();
+  }
+
   useEffect(() => { load(); }, [load]);
 
   return (
@@ -92,10 +98,18 @@ export default function AdminSessionsPage() {
                 <td className="p-3 text-foreground/50">
                   {new Date(s.createdAt).toLocaleDateString()}
                 </td>
-                <td className="p-3 text-right">
+                <td className="p-3 text-right space-x-2">
                   <Link href={`/admin/sessions/${s.id}`} className="text-xs text-foreground/40 hover:text-foreground/70">
                     view
                   </Link>
+                  {(s.status === "active" || s.status === "queued") && (
+                    <button
+                      onClick={() => endSession(s.id)}
+                      className="text-xs text-red-500/60 hover:text-red-500"
+                    >
+                      end
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
