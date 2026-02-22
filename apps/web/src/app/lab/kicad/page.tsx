@@ -1,14 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { difficultyColors } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
-
-const difficultyOrder = { easy: 0, medium: 1, hard: 2 };
-const difficultyColors: Record<string, string> = {
-  easy: "text-green-600",
-  medium: "text-yellow-600",
-  hard: "text-red-600",
-};
 
 export default async function KicadAssessmentsPage() {
   const assessments = await prisma.assessment.findMany({
@@ -17,63 +11,61 @@ export default async function KicadAssessmentsPage() {
     orderBy: { createdAt: "asc" },
   });
 
-  const grouped = assessments.reduce(
-    (acc, item) => {
-      acc[item.difficulty] = acc[item.difficulty] || [];
-      acc[item.difficulty].push(item);
-      return acc;
-    },
-    {} as Record<string, typeof assessments>
-  );
-
-  const sections = Object.entries(grouped).sort(
-    ([a], [b]) =>
-      (difficultyOrder[a as keyof typeof difficultyOrder] ?? 99) -
-      (difficultyOrder[b as keyof typeof difficultyOrder] ?? 99)
-  );
-
   return (
-    <main className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-6 py-16">
-        <Link href="/" className="text-sm text-foreground/40 hover:text-foreground/60 mb-8 block">
-          &larr; Back
+    <main className="py-20 px-6">
+      <div className="max-w-4xl mx-auto">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-10"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
         </Link>
-        <h1 className="text-3xl font-bold mb-2">KiCad Assessments</h1>
-        <p className="text-foreground/60 mb-10">
+
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
+          KiCad Assessments
+        </h1>
+        <p className="text-lg text-muted-foreground mb-12">
           PCB design challenges. Choose an assessment and prove your skills.
         </p>
 
-        {sections.map(([difficulty, items]) => (
-          <div key={difficulty} className="mb-10">
-            <h2 className={`text-lg font-semibold capitalize mb-4 ${difficultyColors[difficulty] || ""}`}>
-              {difficulty}
-            </h2>
-            <div className="grid gap-3">
-              {items.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/lab/kicad/${item.id}`}
-                  className="block p-5 rounded-lg border border-foreground/15 hover:border-foreground/30 hover:bg-foreground/5 transition-colors"
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {assessments.map((item) => (
+            <Link
+              key={item.id}
+              href={`/lab/kicad/${item.id}`}
+              className="group block p-6 rounded-lg ring-1 ring-border bg-card shadow-lg shadow-black/[0.03] dark:shadow-black/20 hover:ring-accent/30 hover:shadow-accent/[0.08] transition-all duration-200"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <h3 className="text-lg font-semibold group-hover:text-accent transition-colors">
+                  {item.title}
+                </h3>
+                <span
+                  className={`text-xs font-medium px-3 py-1 rounded-full ring-1 capitalize shrink-0 ml-4 ${difficultyColors[item.difficulty] || ""}`}
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-medium">{item.title}</h3>
-                      <p className="text-sm text-foreground/50 mt-1 line-clamp-2">
-                        {item.description}
-                      </p>
-                    </div>
-                    <span className="text-sm text-foreground/40 shrink-0 ml-4">
-                      {Math.round(item.timeLimit / 60)} min
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        ))}
+                  {item.difficulty}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground line-clamp-2 mb-4 leading-relaxed">
+                {item.description}
+              </p>
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                {Math.round(item.timeLimit / 60)} min
+              </div>
+            </Link>
+          ))}
+        </div>
 
         {assessments.length === 0 && (
-          <p className="text-foreground/40">No assessments available yet.</p>
+          <p className="text-muted-foreground text-center py-20">
+            No assessments available yet.
+          </p>
         )}
       </div>
     </main>

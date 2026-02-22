@@ -63,7 +63,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
     } catch {
-      // Mic access denied — user can still type
+      // Mic access denied
     }
   }
 
@@ -96,7 +96,6 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
     });
     const data = await res.json();
 
-    // Update the last QA entry with the actual transcript if server returns it
     handleAnswerResponse(data);
     setIsLoading(false);
   }
@@ -137,21 +136,23 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
 
   return (
     <div className="flex flex-col h-full">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-foreground/10 flex items-center justify-center shrink-0">
-          <svg className="w-5 h-5 text-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="mb-6 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-md ring-1 ring-accent/20 bg-accent/10 flex items-center justify-center shrink-0">
+          <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
           </svg>
         </div>
         <div>
           <h2 className="text-sm font-semibold capitalize">{phase} Phase</h2>
-          <p className="text-xs text-foreground/40">AI Proctor</p>
+          <p className="text-xs text-muted-foreground">AI Proctor</p>
         </div>
       </div>
 
       {currentQuestion && (
         <div className="flex-1 flex flex-col justify-center mb-4">
-          <p className="text-lg font-medium mb-6 leading-relaxed">{currentQuestion}</p>
+          <p className="text-lg font-medium mb-8 leading-relaxed">
+            {currentQuestion}
+          </p>
 
           <textarea
             value={transcript}
@@ -163,14 +164,14 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
               }
             }}
             placeholder="Type your answer or use the mic..."
-            className="w-full p-2.5 border border-foreground/15 rounded-lg bg-background text-sm resize-none h-20 focus:outline-none focus:border-foreground/30"
+            className="w-full p-3 ring-1 ring-border rounded-md bg-muted text-sm resize-none h-24 focus:outline-none focus:ring-blue-500 transition-all"
           />
 
-          <div className="flex gap-2 mt-2">
+          <div className="flex gap-3 mt-3">
             <button
               onClick={handleSubmitText}
               disabled={!transcript.trim() || isLoading}
-              className="px-3 py-1.5 bg-foreground text-background text-sm rounded-lg hover:opacity-90 disabled:opacity-50"
+              className="h-9 px-4 text-sm font-medium rounded-md bg-accent text-accent-foreground hover:bg-accent-hover shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
             >
               Send
             </button>
@@ -179,7 +180,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
               <button
                 onClick={startRecording}
                 disabled={isLoading}
-                className="px-3 py-1.5 border border-foreground/15 text-sm rounded-lg hover:bg-foreground/5 disabled:opacity-50 flex items-center gap-1.5"
+                className="h-9 px-4 text-sm font-medium rounded-md bg-muted ring-1 ring-border hover:bg-muted/80 transition-all duration-75 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1.5"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
@@ -189,7 +190,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
             ) : (
               <button
                 onClick={handleSubmitAudio}
-                className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 flex items-center gap-1.5 animate-pulse"
+                className="h-9 px-4 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 transition-all duration-75 active:scale-[0.98] flex items-center gap-1.5 animate-pulse"
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <rect x="6" y="6" width="12" height="12" rx="2" />
@@ -202,8 +203,8 @@ export function AIProctor({ sessionId, phase, onPhaseComplete }: AIProctorProps)
       )}
 
       {isLoading && !currentQuestion && (
-        <div className="flex items-center gap-2 text-foreground/40 text-sm pt-3">
-          <div className="w-4 h-4 border-2 border-foreground/20 border-t-foreground/60 rounded-full animate-spin" />
+        <div className="flex items-center gap-2 text-muted-foreground text-sm pt-4">
+          <div className="w-4 h-4 border-2 border-border border-t-accent rounded-full animate-spin" />
           Thinking...
         </div>
       )}
