@@ -15,7 +15,7 @@ AI-proctored practical exam platform for engineering tools. Students complete ha
         │              │
         ▼              ▼
 ┌──────────────┐  ┌──────────────┐
-│  Next.js     │  │  KiCad       │
+│  Next.js     │  │  Environment │
 │  API Routes  │  │  Container   │
 │              │  │              │
 │  - AI Q&A    │  │  Xvfb        │
