@@ -97,8 +97,8 @@ export async function POST(
   try {
     const audioBuffer = await textToSpeech(questionText);
     audioBase64 = audioBuffer.toString("base64");
-  } catch {
-    // TTS failed — text-only fallback
+  } catch (err) {
+    console.error("[TTS] question route failed:", err);
   }
 
   return NextResponse.json({

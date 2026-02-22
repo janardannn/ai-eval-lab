@@ -200,8 +200,8 @@ Return JSON with:
   try {
     const audioBuffer = await textToSpeech(evalResult.followUp);
     audioBase64 = audioBuffer.toString("base64");
-  } catch {
-    // TTS failed — text-only fallback
+  } catch (err) {
+    console.error("[TTS] answer route failed:", err);
   }
 
   // Check if next phase transition needed
