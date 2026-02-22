@@ -11,7 +11,6 @@ import {
 } from "@/lib/redis";
 import { speechToText } from "@/lib/stt";
 import { jsonCompletion } from "@/lib/ai";
-import { textToSpeech } from "@/lib/tts";
 
 interface PhaseConfig {
   questions: string[];
@@ -196,14 +195,6 @@ Return JSON with:
   await setProbeDepth(sessionId, remaining - 1);
   await setPendingQuestion(sessionId, evalResult.followUp);
 
-  let audioBase64: string | null = null;
-  try {
-    const audioBuffer = await textToSpeech(evalResult.followUp);
-    audioBase64 = audioBuffer.toString("base64");
-  } catch (err) {
-    console.error("[TTS] answer route failed:", err);
-  }
-
   // Check if next phase transition needed
   const nextPhase = phase === "intro" ? "domain" : "lab";
   const totalCount = await prisma.qAPair.count({
@@ -219,6 +210,5 @@ Return JSON with:
   return NextResponse.json({
     eval: "probe",
     followUp: evalResult.followUp,
-    audio: audioBase64,
   });
 }

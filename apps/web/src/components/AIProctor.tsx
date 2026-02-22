@@ -9,42 +9,13 @@ interface AIProctorProps {
   onEndExam?: () => void;
 }
 
-// Shared AudioContext — survives across component remounts.
-let sharedAudioCtx: AudioContext | null = null;
-
-function ensureAudioContext() {
-  if (!sharedAudioCtx) {
-    sharedAudioCtx = new AudioContext();
-  }
-  if (sharedAudioCtx.state === "suspended") {
-    sharedAudioCtx.resume();
-  }
-  return sharedAudioCtx;
-}
-
-function playAudioDelayed(base64: string) {
-  try {
-    const ctx = ensureAudioContext();
-    const raw = atob(base64);
-    const buf = new Uint8Array(raw.length);
-    for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
-
-    ctx.decodeAudioData(buf.buffer.slice(0)).then((decoded) => {
-      const src = ctx.createBufferSource();
-      src.buffer = decoded;
-      src.connect(ctx.destination);
-      src.start(ctx.currentTime + 1);
-    }).catch((err) => {
-      console.error("[TTS] AudioContext decode failed:", err);
-      // Fallback: try plain Audio element
-      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-      const blob = new Blob([bytes], { type: "audio/mpeg" });
-      const audio = new Audio(URL.createObjectURL(blob));
-      setTimeout(() => audio.play().catch(() => {}), 1000);
-    });
-  } catch (err) {
-    console.error("[TTS] AudioContext error:", err);
-  }
+function speakDelayed(text: string) {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 1;
+  utterance.pitch = 1;
+  setTimeout(() => window.speechSynthesis.speak(utterance), 1000);
 }
 
 export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIProctorProps) {
@@ -56,7 +27,6 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const pendingAudioRef = useRef<string | null>(null);
   // Synchronous guard — React state batching can't bypass this
   const busyRef = useRef(false);
 
@@ -72,13 +42,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
       }
 
       setCurrentQuestion(data.question);
-      if (data.audio) {
-        if (sharedAudioCtx && sharedAudioCtx.state === "running") {
-          playAudioDelayed(data.audio);
-        } else {
-          pendingAudioRef.current = data.audio;
-        }
-      }
+      speakDelayed(data.question);
     } finally {
       setIsLoading(false);
     }
@@ -91,17 +55,8 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
     }
   }, [hasStarted, fetchQuestion]);
 
-  function unlockAudio() {
-    ensureAudioContext();
-    if (pendingAudioRef.current) {
-      playAudioDelayed(pendingAudioRef.current);
-      pendingAudioRef.current = null;
-    }
-  }
-
   async function startRecording() {
     if (busyRef.current) return;
-    unlockAudio();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
@@ -137,7 +92,6 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
   async function handleSubmitAudio() {
     if (!currentQuestion || busyRef.current) return;
     busyRef.current = true;
-    unlockAudio();
     const blob = await stopRecording();
     if (!blob) { busyRef.current = false; return; }
 
@@ -158,7 +112,6 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
   async function handleSubmitText() {
     if (!transcript.trim() || !currentQuestion || busyRef.current) return;
     busyRef.current = true;
-    unlockAudio();
 
     const answer = transcript;
     setIsLoading(true);
@@ -188,7 +141,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
       onPhaseComplete();
     } else if (data.eval === "probe" && data.followUp) {
       setCurrentQuestion(data.followUp);
-      if (data.audio) playAudioDelayed(data.audio);
+      speakDelayed(data.followUp);
     } else {
       fetchQuestion();
     }
