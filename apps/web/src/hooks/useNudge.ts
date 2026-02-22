@@ -9,6 +9,24 @@ interface NudgeState {
   dismiss: () => void;
 }
 
+function playNudgeAudio(base64: string) {
+  try {
+    const ctx = new AudioContext();
+    const raw = atob(base64);
+    const buf = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+
+    ctx.decodeAudioData(buf.buffer.slice(0)).then((decoded) => {
+      const src = ctx.createBufferSource();
+      src.buffer = decoded;
+      src.connect(ctx.destination);
+      src.start(ctx.currentTime + 1);
+    }).catch(() => {});
+  } catch {
+    // AudioContext not available
+  }
+}
+
 export function useNudge(sessionId: string, active: boolean): NudgeState {
   const [message, setMessage] = useState<string | null>(null);
 
@@ -19,14 +37,8 @@ export function useNudge(sessionId: string, active: boolean): NudgeState {
       const data = await res.json();
       if (data.nudge && data.message) {
         setMessage(data.message);
-
         if (data.audio) {
-          setTimeout(() => {
-            const bytes = Uint8Array.from(atob(data.audio), (c) => c.charCodeAt(0));
-            const blob = new Blob([bytes], { type: "audio/mpeg" });
-            const audio = new Audio(URL.createObjectURL(blob));
-            audio.play().catch(() => {});
-          }, 1000);
+          playNudgeAudio(data.audio);
         }
       }
     } catch {

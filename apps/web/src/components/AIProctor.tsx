@@ -9,6 +9,39 @@ interface AIProctorProps {
   onEndExam?: () => void;
 }
 
+// Shared AudioContext — survives across component remounts.
+// Created on first user interaction so the browser considers it "unlocked".
+let sharedAudioCtx: AudioContext | null = null;
+
+function ensureAudioContext() {
+  if (!sharedAudioCtx) {
+    sharedAudioCtx = new AudioContext();
+  }
+  if (sharedAudioCtx.state === "suspended") {
+    sharedAudioCtx.resume();
+  }
+  return sharedAudioCtx;
+}
+
+function playAudioDelayed(base64: string) {
+  try {
+    const ctx = ensureAudioContext();
+    const raw = atob(base64);
+    const buf = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+
+    ctx.decodeAudioData(buf.buffer.slice(0)).then((decoded) => {
+      const src = ctx.createBufferSource();
+      src.buffer = decoded;
+      src.connect(ctx.destination);
+      // schedule 1 s after now — no setTimeout needed
+      src.start(ctx.currentTime + 1);
+    }).catch(() => {});
+  } catch {
+    // AudioContext not available
+  }
+}
+
 export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIProctorProps) {
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -18,15 +51,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-
-  function playAudioDelayed(base64: string) {
-    setTimeout(() => {
-      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-      const blob = new Blob([bytes], { type: "audio/mpeg" });
-      const audio = new Audio(URL.createObjectURL(blob));
-      audio.play().catch(() => {});
-    }, 1000);
-  }
+  const pendingAudioRef = useRef<string | null>(null);
 
   const fetchQuestion = useCallback(async () => {
     setIsLoading(true);
@@ -40,7 +65,14 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
       }
 
       setCurrentQuestion(data.question);
-      if (data.audio) playAudioDelayed(data.audio);
+      // If AudioContext is already unlocked, play now. Otherwise stash for first click.
+      if (data.audio) {
+        if (sharedAudioCtx && sharedAudioCtx.state === "running") {
+          playAudioDelayed(data.audio);
+        } else {
+          pendingAudioRef.current = data.audio;
+        }
+      }
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +85,18 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
     }
   }, [hasStarted, fetchQuestion]);
 
+  // Unlock AudioContext on any user interaction within this component
+  function unlockAudio() {
+    ensureAudioContext();
+    // Play any audio that was stashed before unlock
+    if (pendingAudioRef.current) {
+      playAudioDelayed(pendingAudioRef.current);
+      pendingAudioRef.current = null;
+    }
+  }
+
   async function startRecording() {
+    unlockAudio();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
@@ -87,7 +130,8 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
   }
 
   async function handleSubmitAudio() {
-    if (!currentQuestion) return;
+    if (!currentQuestion || isLoading) return;
+    unlockAudio();
     const blob = await stopRecording();
     if (!blob) return;
 
@@ -104,15 +148,17 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
   }
 
   async function handleSubmitText() {
-    if (!transcript.trim() || !currentQuestion) return;
+    if (!transcript.trim() || !currentQuestion || isLoading) return;
+    unlockAudio();
 
+    const answer = transcript;
     setIsLoading(true);
     setTranscript("");
 
     const res = await fetch(`/api/ai/${sessionId}/answer`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript }),
+      body: JSON.stringify({ transcript: answer }),
     });
     const data = await res.json();
 
@@ -210,8 +256,9 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
                 handleSubmitText();
               }
             }}
+            disabled={isLoading}
             placeholder="Type your answer or use the mic..."
-            className="w-full p-3 ring-1 ring-border rounded-md bg-muted text-sm resize-none h-24 focus:outline-none focus:ring-blue-500 transition-all"
+            className="w-full p-3 ring-1 ring-border rounded-md bg-muted text-sm resize-none h-24 focus:outline-none focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           />
 
           <div className="flex gap-3 mt-3">
