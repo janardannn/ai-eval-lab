@@ -49,13 +49,11 @@ export function StartExamButton({ assessmentId }: { assessmentId: string }) {
       <button
         onClick={handleStart}
         disabled={loading}
-        className="px-6 py-3 bg-foreground text-background rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+        className="h-12 px-8 text-base font-medium rounded-md bg-accent text-accent-foreground hover:bg-accent-hover shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
       >
         {loading ? "Starting..." : "Start Exam"}
       </button>
-      {error && (
-        <p className="mt-3 text-sm text-red-400">{error}</p>
-      )}
+      {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
     </div>
   );
 }
