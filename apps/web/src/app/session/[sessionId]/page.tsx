@@ -22,6 +22,8 @@ export default function SessionPage() {
   const router = useRouter();
   const [session, setSession] = useState<SessionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
 
   useHeartbeat(sessionId);
   const nudge = useNudge(sessionId, session?.phase === "lab");
@@ -51,9 +53,7 @@ export default function SessionPage() {
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleSubmit() {
+  async function handleEndExam() {
     setSubmitting(true);
     try {
       await fetch(`/api/session/${sessionId}/end`, { method: "POST" });
@@ -92,7 +92,7 @@ export default function SessionPage() {
     return (
       <main>
         <div className="max-w-2xl mx-auto px-6 py-20">
-          <AIProctor sessionId={sessionId} phase="intro" onPhaseComplete={fetchStatus} />
+          <AIProctor key="intro" sessionId={sessionId} phase="intro" onPhaseComplete={fetchStatus} onEndExam={handleEndExam} />
         </div>
       </main>
     );
@@ -100,12 +100,14 @@ export default function SessionPage() {
 
   if (session.phase === "domain") {
     return (
-      <main className="min-h-[calc(100vh-4rem)] flex">
-        <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[70%]"} p-6 ring-1 ring-border`}>
-          <AIProctor sessionId={sessionId} phase="domain" onPhaseComplete={fetchStatus} />
-        </div>
-        <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[30%]"} p-6 flex items-center justify-center bg-muted/50`}>
-          <p className="text-muted-foreground">Reference materials will appear here</p>
+      <main className="min-h-[calc(100vh-4rem)] flex justify-center">
+        <div className="w-[85%] max-w-7xl flex">
+          <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[65%]"} p-6 ring-1 ring-border`}>
+            <AIProctor key="domain" sessionId={sessionId} phase="domain" onPhaseComplete={fetchStatus} onEndExam={handleEndExam} />
+          </div>
+          <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[35%]"} p-6 flex items-center justify-center bg-muted/50 ring-1 ring-border`}>
+            <p className="text-muted-foreground">Reference materials will appear here</p>
+          </div>
         </div>
       </main>
     );
@@ -115,15 +117,43 @@ export default function SessionPage() {
     <main className="h-[calc(100vh-4rem)] flex flex-col">
       <div className="h-12 ring-1 ring-border bg-card flex items-center justify-between px-4 shrink-0">
         <span className="text-sm font-semibold tracking-tight">Lab Session</span>
-        <Timer seconds={session.timeLimit || 1800} onTimeUp={handleSubmit} />
+        <Timer seconds={session.timeLimit || 1800} onTimeUp={handleEndExam} />
         <button
-          onClick={handleSubmit}
+          onClick={() => setShowEndConfirm(true)}
           disabled={submitting}
           className="h-8 px-4 text-sm font-medium rounded-md bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
         >
           {submitting ? "Submitting..." : "Submit"}
         </button>
       </div>
+
+      {showEndConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card ring-1 ring-border rounded-lg p-6 max-w-sm mx-4 shadow-2xl">
+            <h3 className="text-lg font-semibold mb-2">Submit & End Exam?</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              This will end your lab session and submit your work for grading. This cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowEndConfirm(false)}
+                className="h-9 px-4 text-sm font-medium rounded-md ring-1 ring-border hover:bg-muted transition-all duration-75 active:scale-[0.98]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowEndConfirm(false);
+                  handleEndExam();
+                }}
+                className="h-9 px-4 text-sm font-medium rounded-md bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98]"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-1 min-h-0">
         <div className="w-[30%] p-4 ring-1 ring-border bg-card/50 overflow-y-auto">
@@ -148,7 +178,7 @@ export default function SessionPage() {
               </p>
             </div>
           )}
-          <AIProctor sessionId={sessionId} phase="lab" onPhaseComplete={fetchStatus} />
+          <AIProctor key="lab" sessionId={sessionId} phase="lab" onPhaseComplete={fetchStatus} />
         </div>
         <div className="w-[70%]">
           {session.containerUrl ? (
