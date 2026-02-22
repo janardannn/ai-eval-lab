@@ -16,11 +16,11 @@ interface QAPair {
 }
 
 interface Rubric {
+  strictOrder?: boolean;
   checkpoints: {
     name: string;
     description: string;
     weight: number;
-    expectedOrder?: number;
   }[];
 }
 

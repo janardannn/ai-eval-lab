@@ -9,7 +9,6 @@ interface CheckpointDraft {
   name: string;
   description: string;
   weight: number;
-  expectedOrder: number;
 }
 
 export default function NewAssessmentPage() {
@@ -43,8 +42,9 @@ export default function NewAssessmentPage() {
 
   const [problemStatement, setProblemStatement] = useState("");
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [strictOrder, setStrictOrder] = useState(false);
   const [checkpoints, setCheckpoints] = useState<CheckpointDraft[]>([
-    { name: "", description: "", weight: 0, expectedOrder: 1 },
+    { name: "", description: "", weight: 0 },
   ]);
 
   function addQuestion(list: string[], setList: (v: string[]) => void) {
@@ -92,7 +92,7 @@ export default function NewAssessmentPage() {
       },
       labConfig: {
         problemStatement,
-        rubric: { checkpoints: checkpoints.filter((c) => c.name.trim()) },
+        rubric: { strictOrder, checkpoints: checkpoints.filter((c) => c.name.trim()) },
       },
     };
 
@@ -288,15 +288,25 @@ export default function NewAssessmentPage() {
               <label className="text-sm text-foreground/60">
                 Rubric Checkpoints <span className={totalWeight() === 100 ? "text-green-500" : "text-red-400"}>({totalWeight()}/100)</span>
               </label>
-              <button
-                onClick={() => setCheckpoints([...checkpoints, { name: "", description: "", weight: 0, expectedOrder: checkpoints.length + 1 }])}
-                className="text-sm text-foreground/40 hover:text-foreground/70"
-              >+ Add checkpoint</button>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={strictOrder} onChange={(e) => setStrictOrder(e.target.checked)} />
+                  Strict ordering
+                </label>
+                <button
+                  onClick={() => setCheckpoints([...checkpoints, { name: "", description: "", weight: 0 }])}
+                  className="text-sm text-foreground/40 hover:text-foreground/70"
+                >+ Add checkpoint</button>
+              </div>
             </div>
+            {strictOrder && (
+              <p className="text-xs text-foreground/40 mb-2">Checkpoints must be completed in the order listed. The grader will penalize out-of-order work.</p>
+            )}
             <div className="space-y-3">
               {checkpoints.map((cp, i) => (
                 <div key={i} className="border border-foreground/10 rounded p-3 space-y-2">
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
+                    {strictOrder && <span className="text-xs text-foreground/30 w-5 text-center shrink-0">{i + 1}</span>}
                     <input value={cp.name} placeholder="Checkpoint name"
                       onChange={(e) => {
                         const next = [...checkpoints];
@@ -304,24 +314,20 @@ export default function NewAssessmentPage() {
                         setCheckpoints(next);
                       }}
                       className="flex-1 p-2 border border-foreground/15 rounded bg-background text-sm" />
-                    <input type="number" value={cp.weight} placeholder="Weight"
-                      onChange={(e) => {
-                        const next = [...checkpoints];
-                        next[i] = { ...cp, weight: Number(e.target.value) };
-                        setCheckpoints(next);
-                      }}
-                      className="w-20 p-2 border border-foreground/15 rounded bg-background text-sm" />
-                    <input type="number" value={cp.expectedOrder} placeholder="Order"
-                      onChange={(e) => {
-                        const next = [...checkpoints];
-                        next[i] = { ...cp, expectedOrder: Number(e.target.value) };
-                        setCheckpoints(next);
-                      }}
-                      className="w-16 p-2 border border-foreground/15 rounded bg-background text-sm" />
+                    <div className="flex items-center gap-1">
+                      <input type="number" value={cp.weight} placeholder="Wt"
+                        onChange={(e) => {
+                          const next = [...checkpoints];
+                          next[i] = { ...cp, weight: Number(e.target.value) };
+                          setCheckpoints(next);
+                        }}
+                        className="w-16 p-2 border border-foreground/15 rounded bg-background text-sm text-center" />
+                      <span className="text-xs text-foreground/30">%</span>
+                    </div>
                     <button onClick={() => setCheckpoints(checkpoints.filter((_, j) => j !== i))}
                       className="text-red-500/60 hover:text-red-500 text-xs px-2">x</button>
                   </div>
-                  <input value={cp.description} placeholder="Description"
+                  <input value={cp.description} placeholder="What the student should accomplish"
                     onChange={(e) => {
                       const next = [...checkpoints];
                       next[i] = { ...cp, description: e.target.value };
@@ -354,7 +360,7 @@ export default function NewAssessmentPage() {
             {domainQuestions.filter(q => q.trim()).map((q, i) => <p key={i} className="text-foreground/60">{i + 1}. {q}</p>)}
           </div>
           <div className="border border-foreground/10 rounded p-4 space-y-2">
-            <h3 className="font-semibold">Lab ({checkpoints.filter(c => c.name.trim()).length} checkpoints, {totalWeight()}/100 weight)</h3>
+            <h3 className="font-semibold">Lab ({checkpoints.filter(c => c.name.trim()).length} checkpoints, {totalWeight()}/100 weight{strictOrder ? ", strict order" : ""})</h3>
             <p className="text-foreground/60">{problemStatement}</p>
             {checkpoints.filter(c => c.name.trim()).map((c, i) => (
               <p key={i} className="text-foreground/60">{c.name} — {c.weight}%</p>
