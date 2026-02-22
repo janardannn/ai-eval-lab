@@ -45,6 +45,13 @@ export default function VerdictPage() {
           return;
         }
 
+        // 410 = session abandoned, no grade will ever come
+        if (res.status === 410) {
+          setError("This session was ended before grading could complete.");
+          setLoading(false);
+          return;
+        }
+
         attempts.current++;
         if (attempts.current > 40) {
           setError("Grading is taking longer than expected. Please try refreshing later.");
