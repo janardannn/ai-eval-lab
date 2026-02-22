@@ -32,9 +32,11 @@ export default function NewAssessmentPage() {
     "What motivated you to take this assessment?",
   ]);
   const [introAdaptive, setIntroAdaptive] = useState(false);
+  const [introProbeDepth, setIntroProbeDepth] = useState(1);
 
   const [domainQuestions, setDomainQuestions] = useState<string[]>([""]);
   const [domainAdaptive, setDomainAdaptive] = useState(true);
+  const [domainProbeDepth, setDomainProbeDepth] = useState(2);
   const [domainPrompt, setDomainPrompt] = useState(
     "You are evaluating a candidate's technical knowledge. Based on their previous answers, either probe deeper on weak areas or advance. Focus on practical understanding."
   );
@@ -79,12 +81,14 @@ export default function NewAssessmentPage() {
         questions: introQuestions.filter((q) => q.trim()),
         adaptive: introAdaptive,
         maxQuestions: introQuestions.filter((q) => q.trim()).length,
+        maxProbeDepth: introAdaptive ? introProbeDepth : 0,
       },
       domainConfig: {
         questions: domainQuestions.filter((q) => q.trim()),
         adaptive: domainAdaptive,
         maxQuestions: domainQuestions.filter((q) => q.trim()).length,
         adaptivePrompt: domainPrompt,
+        maxProbeDepth: domainAdaptive ? domainProbeDepth : 0,
       },
       labConfig: {
         problemStatement,
@@ -174,9 +178,10 @@ export default function NewAssessmentPage() {
               </select>
             </div>
             <div>
-              <label className="text-sm text-foreground/60 block mb-1">Time Limit (min)</label>
+              <label className="text-sm text-foreground/60 block mb-1">Lab Time (min)</label>
               <input type="number" value={Math.round(general.timeLimit / 60)}
                 onChange={(e) => setGeneral({ ...general, timeLimit: Number(e.target.value) * 60 })}
+                placeholder="Lab only, excl. Q&A"
                 className="w-full p-2 border border-foreground/15 rounded bg-background text-sm" />
             </div>
           </div>
@@ -188,10 +193,20 @@ export default function NewAssessmentPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <label className="text-sm text-foreground/60">Intro Questions</label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={introAdaptive} onChange={(e) => setIntroAdaptive(e.target.checked)} />
-              Adaptive
-            </label>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={introAdaptive} onChange={(e) => setIntroAdaptive(e.target.checked)} />
+                Adaptive
+              </label>
+              {introAdaptive && (
+                <label className="flex items-center gap-1.5 text-sm text-foreground/60">
+                  Probe depth
+                  <input type="number" min={1} max={5} value={introProbeDepth}
+                    onChange={(e) => setIntroProbeDepth(Number(e.target.value))}
+                    className="w-14 p-1 border border-foreground/15 rounded bg-background text-sm text-center" />
+                </label>
+              )}
+            </div>
           </div>
           {introQuestions.map((q, i) => (
             <div key={i} className="flex gap-2">
@@ -212,10 +227,20 @@ export default function NewAssessmentPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <label className="text-sm text-foreground/60">Domain Questions</label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={domainAdaptive} onChange={(e) => setDomainAdaptive(e.target.checked)} />
-              Adaptive (LLM-generated follow-ups)
-            </label>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={domainAdaptive} onChange={(e) => setDomainAdaptive(e.target.checked)} />
+                Adaptive
+              </label>
+              {domainAdaptive && (
+                <label className="flex items-center gap-1.5 text-sm text-foreground/60">
+                  Probe depth
+                  <input type="number" min={1} max={5} value={domainProbeDepth}
+                    onChange={(e) => setDomainProbeDepth(Number(e.target.value))}
+                    className="w-14 p-1 border border-foreground/15 rounded bg-background text-sm text-center" />
+                </label>
+              )}
+            </div>
           </div>
           {domainQuestions.map((q, i) => (
             <div key={i} className="flex gap-2">
@@ -321,11 +346,11 @@ export default function NewAssessmentPage() {
             <p><span className="text-foreground/50">Time:</span> {Math.round(general.timeLimit / 60)} min</p>
           </div>
           <div className="border border-foreground/10 rounded p-4 space-y-2">
-            <h3 className="font-semibold">Intro ({introQuestions.filter(q => q.trim()).length} questions{introAdaptive ? ", adaptive" : ""})</h3>
+            <h3 className="font-semibold">Intro ({introQuestions.filter(q => q.trim()).length} questions{introAdaptive ? `, adaptive, depth ${introProbeDepth}` : ""})</h3>
             {introQuestions.filter(q => q.trim()).map((q, i) => <p key={i} className="text-foreground/60">{i + 1}. {q}</p>)}
           </div>
           <div className="border border-foreground/10 rounded p-4 space-y-2">
-            <h3 className="font-semibold">Domain ({domainQuestions.filter(q => q.trim()).length} questions{domainAdaptive ? ", adaptive" : ""})</h3>
+            <h3 className="font-semibold">Domain ({domainQuestions.filter(q => q.trim()).length} questions{domainAdaptive ? `, adaptive, depth ${domainProbeDepth}` : ""})</h3>
             {domainQuestions.filter(q => q.trim()).map((q, i) => <p key={i} className="text-foreground/60">{i + 1}. {q}</p>)}
           </div>
           <div className="border border-foreground/10 rounded p-4 space-y-2">
