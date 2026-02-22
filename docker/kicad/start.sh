@@ -5,6 +5,10 @@ Xvfb :99 -screen 0 1920x1080x24 &
 export DISPLAY=:99
 sleep 1
 
+# Start window manager (auto-maximizes + no decorations)
+openbox &
+sleep 1
+
 # Start VNC server
 x11vnc -display :99 -nopw -forever -shared -rfbport 5900 &
 sleep 1
