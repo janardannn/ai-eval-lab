@@ -116,7 +116,15 @@ export default function VerdictPage() {
     <main>
       <div className="relative overflow-hidden py-16 sm:py-24">
         <div className={`absolute inset-0 bg-gradient-to-r ${gradient}`} />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/60 to-transparent" />
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
         <div className="relative max-w-3xl mx-auto px-6 text-center">
           <h1 className="text-4xl sm:text-6xl font-bold mb-4 text-white tracking-tight">
             {label}
