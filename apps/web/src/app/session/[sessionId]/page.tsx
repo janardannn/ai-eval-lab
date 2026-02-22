@@ -100,14 +100,12 @@ export default function SessionPage() {
 
   if (session.phase === "domain") {
     return (
-      <main className="min-h-[calc(100vh-4rem)] flex justify-center">
-        <div className="w-[92%] max-w-7xl flex">
-          <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[65%]"} p-6 ring-1 ring-border`}>
-            <AIProctor key="domain" sessionId={sessionId} phase="domain" onPhaseComplete={fetchStatus} onEndExam={handleEndExam} />
-          </div>
-          <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[35%]"} p-6 flex items-center justify-center bg-muted/50 ring-1 ring-border`}>
-            <p className="text-muted-foreground">Reference materials will appear here</p>
-          </div>
+      <main className="min-h-[calc(100vh-4rem)] flex">
+        <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[70%]"} p-6 ring-1 ring-border`}>
+          <AIProctor key="domain" sessionId={sessionId} phase="domain" onPhaseComplete={fetchStatus} onEndExam={handleEndExam} />
+        </div>
+        <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[30%]"} p-6 flex items-center justify-center bg-muted/50 ring-1 ring-border`}>
+          <p className="text-muted-foreground">Reference materials will appear here</p>
         </div>
       </main>
     );
