@@ -11,11 +11,15 @@ RUN apt-get update && apt-get install -y \
     x11vnc \
     novnc \
     websockify \
+    openbox \
     python3 \
     python3-pip \
     && pip3 install requests \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Openbox config: auto-maximize all windows, no decorations
+RUN mkdir -p /root/.config/openbox
+COPY openbox-rc.xml /root/.config/openbox/rc.xml
 COPY kicad_poller.py /usr/share/kicad/scripting/plugins/kicad_poller.py
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
