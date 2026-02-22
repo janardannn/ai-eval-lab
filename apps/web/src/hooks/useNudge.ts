@@ -21,10 +21,12 @@ export function useNudge(sessionId: string, active: boolean): NudgeState {
         setMessage(data.message);
 
         if (data.audio) {
-          const bytes = Uint8Array.from(atob(data.audio), (c) => c.charCodeAt(0));
-          const blob = new Blob([bytes], { type: "audio/mpeg" });
-          const audio = new Audio(URL.createObjectURL(blob));
-          audio.play().catch(() => {});
+          setTimeout(() => {
+            const bytes = Uint8Array.from(atob(data.audio), (c) => c.charCodeAt(0));
+            const blob = new Blob([bytes], { type: "audio/mpeg" });
+            const audio = new Audio(URL.createObjectURL(blob));
+            audio.play().catch(() => {});
+          }, 1000);
         }
       }
     } catch {
