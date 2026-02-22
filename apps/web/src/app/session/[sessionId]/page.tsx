@@ -101,7 +101,7 @@ export default function SessionPage() {
   if (session.phase === "domain") {
     return (
       <main className="min-h-[calc(100vh-4rem)] flex justify-center">
-        <div className="w-[85%] max-w-7xl flex">
+        <div className="w-[92%] max-w-7xl flex">
           <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[65%]"} p-6 ring-1 ring-border`}>
             <AIProctor key="domain" sessionId={sessionId} phase="domain" onPhaseComplete={fetchStatus} onEndExam={handleEndExam} />
           </div>
