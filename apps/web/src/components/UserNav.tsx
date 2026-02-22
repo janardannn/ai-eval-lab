@@ -1,5 +1,7 @@
 import { auth, signOut } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { UserDropdown } from "./UserDropdown";
 
 export async function UserNav() {
   const session = await auth();
@@ -15,24 +17,21 @@ export async function UserNav() {
     );
   }
 
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { isAdmin: true },
+  });
+
   return (
-    <div className="flex items-center gap-4">
-      <span className="text-[14px] text-muted-foreground">
-        {session.user.name || session.user.email}
-      </span>
-      <form
-        action={async () => {
-          "use server";
-          await signOut({ redirectTo: "/" });
-        }}
-      >
-        <button
-          type="submit"
-          className="text-[14px] text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Sign out
-        </button>
-      </form>
-    </div>
+    <UserDropdown
+      name={session.user.name || "User"}
+      email={session.user.email || ""}
+      image={session.user.image}
+      isAdmin={user?.isAdmin ?? false}
+      signOutAction={async () => {
+        "use server";
+        await signOut({ redirectTo: "/" });
+      }}
+    />
   );
 }
