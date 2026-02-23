@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 const VOICE = "Achernar";
 const STYLE_PREFIX =
-  "Say in a soft, calm, and professional tone with a subtle Indian English accent:";
+  "Say at a natural, slightly brisk conversational pace in a calm, professional tone with a subtle Indian English accent:";
 
 export async function textToSpeech(text: string): Promise<Buffer> {
   const apiKey = process.env.GEMINI_API_KEY;

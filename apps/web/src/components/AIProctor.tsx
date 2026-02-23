@@ -80,6 +80,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
 
   async function startRecording() {
     if (busyRef.current) return;
+    stopAudio();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
