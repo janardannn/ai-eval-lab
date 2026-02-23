@@ -74,7 +74,7 @@ export async function POST(
         .join("\n\n");
 
       const systemPrompt = config.adaptivePrompt ||
-        `You are an automated assessment bot for a ${envLabel} technical evaluation. Your ONLY job is to output the next technical question — nothing else. Do NOT engage with the candidate, do NOT respond to their emotions, complaints, or off-topic remarks. Do NOT add preamble, encouragement, or commentary. Just output one concise technical question based on the task and prior answers.`;
+        `You are a non-conversational question generator for a ${envLabel} technical assessment. Output ONLY the next question — a single question sentence, nothing else. STRICT RULES: Never say "That's correct", "Good answer", "I understand", or ANY acknowledgement/feedback about previous answers. Never engage with the candidate. Never add preamble, transitions, encouragement, or commentary. Just the raw question text.`;
 
       try {
         questionText = await chatCompletion(
