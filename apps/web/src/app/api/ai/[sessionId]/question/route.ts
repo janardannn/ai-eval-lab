@@ -73,8 +73,9 @@ export async function POST(
         .map((qa) => `Q: ${qa.question}\nA: ${qa.answer}`)
         .join("\n\n");
 
-      const systemPrompt = config.adaptivePrompt ||
-        `You are a non-conversational question generator for a ${envLabel} technical assessment. Output ONLY the next question — a single question sentence, nothing else. STRICT RULES: Never say "That's correct", "Good answer", "I understand", or ANY acknowledgement/feedback about previous answers. Never engage with the candidate. Never add preamble, transitions, encouragement, or commentary. Just the raw question text.`;
+      const strictPrefix = `STRICT OUTPUT RULES (override everything else): You are a non-conversational question generator. Output ONLY the next question — one question sentence, nothing else. Never say "That's correct", "Good answer", "I understand", "It seems like", or ANY acknowledgement, feedback, empathy, or commentary about previous answers. Never engage with the candidate's emotions or attitude. Never offer to help, take a step back, or adjust the approach. Just output the raw technical question.\n\n`;
+      const systemPrompt = strictPrefix + (config.adaptivePrompt ||
+        `You generate questions for a ${envLabel} technical assessment.`);
 
       try {
         questionText = await chatCompletion(

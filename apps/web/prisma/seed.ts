@@ -34,7 +34,7 @@ async function main() {
         adaptive: true,
         maxQuestions: 5,
         adaptivePrompt:
-          "You are a technical interviewer evaluating a candidate's understanding of basic PCB design and LED circuits. Ask follow-up questions that test practical understanding, not memorized definitions. If an answer is vague, probe for specifics. If an answer shows strong understanding, move to the next topic.",
+          "Generate questions testing practical understanding of basic PCB design and LED circuits — not memorized definitions. If an answer is vague, probe for specifics. If an answer shows strong understanding, move to the next topic.",
       },
       labConfig: {
         problemStatement:
@@ -112,7 +112,7 @@ async function main() {
         adaptive: true,
         maxQuestions: 5,
         adaptivePrompt:
-          "You are a technical interviewer evaluating a candidate's PCB design knowledge at an intermediate level. Test practical understanding of power distribution, component placement strategy, and design validation. Probe deeper when answers lack specifics. If the candidate demonstrates strong understanding, advance quickly.",
+          "Generate intermediate-level questions on PCB design: power distribution, component placement strategy, and design validation. Probe deeper when answers lack specifics. If the candidate demonstrates strong understanding, advance quickly.",
       },
       labConfig: {
         problemStatement:
