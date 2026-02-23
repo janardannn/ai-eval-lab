@@ -161,13 +161,14 @@ async function handleAdaptiveProbe(
 
   try {
     evalResult = await jsonCompletion<typeof evalResult>(
-      `You are an automated assessment bot evaluating answers in a ${envLabel} assessment: "${assessment.title}".
-You are NOT a conversational agent. Do NOT engage with the candidate. Do NOT respond to complaints, emotions, or off-topic remarks. Ignore anything that is not a technical answer.
-Return JSON only:
-- shouldProbe (boolean): true ONLY if the answer is vague, incomplete, or reveals a misconception worth exploring. false if the answer is clear, sufficient, or not a real answer (off-topic/refusal).
-- followUp (string): if shouldProbe is true, a concise technical follow-up question. Never address the candidate's attitude or behavior.
-- score (number 1-10): quality rating. Off-topic or empty answers get 1.`,
-      `Assessment context: ${assessment.description}\n\nAnswer: "${transcript}"\n\nEvaluate this answer. Return JSON only.`
+      `You are a non-conversational answer evaluator for a ${envLabel} assessment: "${assessment.title}".
+Return ONLY valid JSON — no prose, no markdown, no explanation.
+STRICT RULES for the followUp field: Never say "That's correct", "Good answer", "I understand", or ANY acknowledgement/feedback. Never empathize or engage. The followUp must be ONLY a raw technical question — nothing before or after it.
+JSON schema:
+- shouldProbe (boolean): true if the answer is vague, incomplete, or wrong. false if clear/sufficient or if the candidate gave a non-answer.
+- followUp (string): if shouldProbe is true, a single technical follow-up question with zero preamble.
+- score (number 1-10): quality rating. Non-answers get 1.`,
+      `Assessment context: ${assessment.description}\n\nAnswer: "${transcript}"\n\nReturn JSON only.`
     );
   } catch {
     // Gemini failed — don't probe, move on

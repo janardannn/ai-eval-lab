@@ -46,14 +46,18 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
   const [isLoading, setIsLoading] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [isRecording, setIsRecording] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   // Synchronous guard — React state batching can't bypass this
   const busyRef = useRef(false);
+  // Prevent concurrent/duplicate fetchQuestion calls
+  const fetchingRef = useRef(false);
+  const mountedRef = useRef(false);
 
   const fetchQuestion = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     setIsLoading(true);
     try {
       const res = await fetch(`/api/ai/${sessionId}/question`, { method: "POST" });
@@ -68,15 +72,16 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
       if (data.audio) playAudioDelayed(data.audio);
     } finally {
       setIsLoading(false);
+      fetchingRef.current = false;
     }
   }, [sessionId, onPhaseComplete]);
 
   useEffect(() => {
-    if (!hasStarted) {
-      setHasStarted(true);
+    if (!mountedRef.current) {
+      mountedRef.current = true;
       fetchQuestion();
     }
-  }, [hasStarted, fetchQuestion]);
+  }, [fetchQuestion]);
 
   async function startRecording() {
     if (busyRef.current) return;
