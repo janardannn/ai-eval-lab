@@ -10,9 +10,18 @@ interface AIProctorProps {
 }
 
 let audioCtx: AudioContext | null = null;
+let currentSource: AudioBufferSourceNode | null = null;
+
+function stopAudio() {
+  if (currentSource) {
+    try { currentSource.stop(); } catch {}
+    currentSource = null;
+  }
+}
 
 function playAudioDelayed(base64Wav: string) {
   if (typeof window === "undefined") return;
+  stopAudio();
   if (!audioCtx) audioCtx = new AudioContext();
 
   const binary = atob(base64Wav);
@@ -20,10 +29,12 @@ function playAudioDelayed(base64Wav: string) {
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
   audioCtx.decodeAudioData(bytes.buffer.slice(0) as ArrayBuffer).then((decoded) => {
+    stopAudio();
     const source = audioCtx!.createBufferSource();
     source.buffer = decoded;
     source.connect(audioCtx!.destination);
-    // 1s delay after text appears
+    source.onended = () => { currentSource = null; };
+    currentSource = source;
     source.start(audioCtx!.currentTime + 1);
   }).catch((err) => {
     console.error("[TTS] AudioContext decode failed:", err);

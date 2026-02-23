@@ -9,17 +9,25 @@ interface NudgeState {
   dismiss: () => void;
 }
 
+let nudgeCtx: AudioContext | null = null;
+let nudgeSource: AudioBufferSourceNode | null = null;
+
 function playAudio(base64Wav: string) {
   if (typeof window === "undefined") return;
-  const ctx = new AudioContext();
+  if (nudgeSource) { try { nudgeSource.stop(); } catch {} nudgeSource = null; }
+  if (!nudgeCtx) nudgeCtx = new AudioContext();
+
   const binary = atob(base64Wav);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  ctx.decodeAudioData(bytes.buffer.slice(0) as ArrayBuffer).then((decoded) => {
-    const source = ctx.createBufferSource();
+  nudgeCtx.decodeAudioData(bytes.buffer.slice(0) as ArrayBuffer).then((decoded) => {
+    if (nudgeSource) { try { nudgeSource.stop(); } catch {} }
+    const source = nudgeCtx!.createBufferSource();
     source.buffer = decoded;
-    source.connect(ctx.destination);
-    source.start(ctx.currentTime + 1);
+    source.connect(nudgeCtx!.destination);
+    source.onended = () => { nudgeSource = null; };
+    nudgeSource = source;
+    source.start(nudgeCtx!.currentTime + 1);
   }).catch(() => {});
 }
 
