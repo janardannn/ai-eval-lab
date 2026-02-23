@@ -9,6 +9,20 @@ interface NudgeState {
   dismiss: () => void;
 }
 
+function playAudio(base64Wav: string) {
+  if (typeof window === "undefined") return;
+  const ctx = new AudioContext();
+  const binary = atob(base64Wav);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  ctx.decodeAudioData(bytes.buffer.slice(0) as ArrayBuffer).then((decoded) => {
+    const source = ctx.createBufferSource();
+    source.buffer = decoded;
+    source.connect(ctx.destination);
+    source.start(ctx.currentTime + 1);
+  }).catch(() => {});
+}
+
 export function useNudge(sessionId: string, active: boolean): NudgeState {
   const [message, setMessage] = useState<string | null>(null);
 
@@ -19,11 +33,7 @@ export function useNudge(sessionId: string, active: boolean): NudgeState {
       const data = await res.json();
       if (data.nudge && data.message) {
         setMessage(data.message);
-        if (typeof window !== "undefined" && window.speechSynthesis) {
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(data.message);
-          setTimeout(() => window.speechSynthesis.speak(utterance), 1000);
-        }
+        if (data.audio) playAudio(data.audio);
       }
     } catch {
       // nudge check failed silently

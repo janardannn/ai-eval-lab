@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionState, setPendingQuestion, clearProbeDepth } from "@/lib/redis";
 import { chatCompletion } from "@/lib/ai";
+import { textToSpeech } from "@/lib/tts";
 
 interface PhaseConfig {
   questions: string[];
@@ -92,8 +93,17 @@ export async function POST(
 
   await setPendingQuestion(sessionId, questionText);
 
+  let audioBase64: string | null = null;
+  try {
+    const audioBuffer = await textToSpeech(questionText);
+    audioBase64 = audioBuffer.toString("base64");
+  } catch (err) {
+    console.error("[TTS] question route failed:", err);
+  }
+
   return NextResponse.json({
     question: questionText,
+    audio: audioBase64,
     phase: state.phase,
   });
 }
