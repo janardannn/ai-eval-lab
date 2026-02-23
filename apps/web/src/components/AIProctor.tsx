@@ -54,6 +54,16 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
   // Prevent concurrent/duplicate fetchQuestion calls
   const fetchingRef = useRef(false);
   const mountedRef = useRef(false);
+  const aliveRef = useRef(true);
+
+  // Stop audio when component unmounts (e.g. user navigates away)
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+      stopAudio();
+    };
+  }, []);
 
   const fetchQuestion = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -68,6 +78,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
         return;
       }
 
+      if (!aliveRef.current) return;
       setCurrentQuestion(data.question);
       if (data.audio) playAudioDelayed(data.audio);
     } finally {
@@ -168,11 +179,12 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
     audio?: string;
     nextPhase?: string;
   }) {
+    if (!aliveRef.current) return;
     if (data.eval === "done") {
       await onPhaseComplete();
     } else if (data.eval === "probe" && data.followUp) {
       setCurrentQuestion(data.followUp);
-      if (data.audio) playAudioDelayed(data.audio);
+      if (data.audio && aliveRef.current) playAudioDelayed(data.audio);
     } else {
       await fetchQuestion();
     }
