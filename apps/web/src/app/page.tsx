@@ -77,10 +77,10 @@ export default function Home() {
           </h1>
 
           <p className="text-xl sm:text-2xl text-muted-foreground max-w-4xl mx-auto mb-14 leading-relaxed">
-            The best way to understand someone's ability is to watch them work.
+            The best way to understand someone&apos;s ability is to watch them work.
+            <br className="hidden sm:block" />
             You get a real tool, a problem statement, and an AI proctor that
-            interviews you along the way. When you're done, the grading takes
-            care of itself.
+            interviews you along the way. Everything else is evaluated automatically.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
