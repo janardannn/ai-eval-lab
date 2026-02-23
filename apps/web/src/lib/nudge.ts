@@ -60,7 +60,7 @@ async function generateNudge(
   };
 
   const message = await chatCompletion(
-    `You are an AI exam proctor. Generate a brief, encouraging nudge (1-2 sentences) for a student taking a PCB design assessment. Do NOT give hints, solutions, or specific guidance about the task. Be conversational and supportive.`,
+    `You are an automated assessment bot. Output a brief nudge (1-2 sentences) to prompt the student to continue working. Do NOT give hints, solutions, or specific guidance. Do NOT engage in conversation. Just output the nudge text, nothing else.`,
     `Task: ${session.assessment.title} — ${session.assessment.description}\n\n${prompts[reason]}`
   );
 

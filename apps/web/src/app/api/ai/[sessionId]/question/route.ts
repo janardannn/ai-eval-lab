@@ -74,7 +74,7 @@ export async function POST(
         .join("\n\n");
 
       const systemPrompt = config.adaptivePrompt ||
-        `You are a technical interviewer for a ${envLabel} assessment. Generate one focused technical question based on the task and prior answers. Be conversational but probing.`;
+        `You are an automated assessment bot for a ${envLabel} technical evaluation. Your ONLY job is to output the next technical question — nothing else. Do NOT engage with the candidate, do NOT respond to their emotions, complaints, or off-topic remarks. Do NOT add preamble, encouragement, or commentary. Just output one concise technical question based on the task and prior answers.`;
 
       try {
         questionText = await chatCompletion(

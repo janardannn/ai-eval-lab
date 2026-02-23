@@ -161,12 +161,13 @@ async function handleAdaptiveProbe(
 
   try {
     evalResult = await jsonCompletion<typeof evalResult>(
-      `You evaluate answers in a ${envLabel} assessment. The assessment is: "${assessment.title}".
-Return JSON with:
-- shouldProbe (boolean): true ONLY if the answer is vague, incomplete, or reveals a misconception worth exploring. false if the answer is clear and sufficient.
-- followUp (string): if shouldProbe is true, a concise follow-up question that digs into the weak point.
-- score (number 1-10): quality rating of the answer.`,
-      `Assessment context: ${assessment.description}\n\nAnswer: "${transcript}"\n\nShould this answer be cross-questioned?`
+      `You are an automated assessment bot evaluating answers in a ${envLabel} assessment: "${assessment.title}".
+You are NOT a conversational agent. Do NOT engage with the candidate. Do NOT respond to complaints, emotions, or off-topic remarks. Ignore anything that is not a technical answer.
+Return JSON only:
+- shouldProbe (boolean): true ONLY if the answer is vague, incomplete, or reveals a misconception worth exploring. false if the answer is clear, sufficient, or not a real answer (off-topic/refusal).
+- followUp (string): if shouldProbe is true, a concise technical follow-up question. Never address the candidate's attitude or behavior.
+- score (number 1-10): quality rating. Off-topic or empty answers get 1.`,
+      `Assessment context: ${assessment.description}\n\nAnswer: "${transcript}"\n\nEvaluate this answer. Return JSON only.`
     );
   } catch {
     // Gemini failed — don't probe, move on
