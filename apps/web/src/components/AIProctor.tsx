@@ -115,6 +115,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
   async function handleSubmitAudio() {
     if (!currentQuestion || busyRef.current) return;
     busyRef.current = true;
+    stopAudio();
     const blob = await stopRecording();
     if (!blob) { busyRef.current = false; return; }
 
@@ -125,7 +126,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
         body: blob,
       });
       const data = await res.json();
-      handleAnswerResponse(data);
+      await handleAnswerResponse(data);
     } finally {
       setIsLoading(false);
       busyRef.current = false;
@@ -135,6 +136,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
   async function handleSubmitText() {
     if (!transcript.trim() || !currentQuestion || busyRef.current) return;
     busyRef.current = true;
+    stopAudio();
 
     const answer = transcript;
     setIsLoading(true);
@@ -147,14 +149,14 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
         body: JSON.stringify({ transcript: answer }),
       });
       const data = await res.json();
-      handleAnswerResponse(data);
+      await handleAnswerResponse(data);
     } finally {
       setIsLoading(false);
       busyRef.current = false;
     }
   }
 
-  function handleAnswerResponse(data: {
+  async function handleAnswerResponse(data: {
     eval: string;
     followUp?: string;
     audio?: string;
@@ -166,7 +168,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
       setCurrentQuestion(data.followUp);
       if (data.audio) playAudioDelayed(data.audio);
     } else {
-      fetchQuestion();
+      await fetchQuestion();
     }
   }
 
