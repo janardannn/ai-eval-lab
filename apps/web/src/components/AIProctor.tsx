@@ -5,7 +5,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 interface AIProctorProps {
   sessionId: string;
   phase: "intro" | "domain" | "lab";
-  onPhaseComplete: () => void;
+  onPhaseComplete: () => void | Promise<void>;
   onEndExam?: () => void;
 }
 
@@ -60,7 +60,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
       const data = await res.json();
 
       if (data.done) {
-        onPhaseComplete();
+        await onPhaseComplete();
         return;
       }
 
@@ -164,7 +164,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
     nextPhase?: string;
   }) {
     if (data.eval === "done") {
-      onPhaseComplete();
+      await onPhaseComplete();
     } else if (data.eval === "probe" && data.followUp) {
       setCurrentQuestion(data.followUp);
       if (data.audio) playAudioDelayed(data.audio);
