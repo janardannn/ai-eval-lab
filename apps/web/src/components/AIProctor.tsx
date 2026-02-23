@@ -9,13 +9,25 @@ interface AIProctorProps {
   onEndExam?: () => void;
 }
 
-function speakDelayed(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 1;
-  utterance.pitch = 1;
-  setTimeout(() => window.speechSynthesis.speak(utterance), 1000);
+let audioCtx: AudioContext | null = null;
+
+function playAudioDelayed(base64Wav: string) {
+  if (typeof window === "undefined") return;
+  if (!audioCtx) audioCtx = new AudioContext();
+
+  const binary = atob(base64Wav);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+  audioCtx.decodeAudioData(bytes.buffer.slice(0) as ArrayBuffer).then((decoded) => {
+    const source = audioCtx!.createBufferSource();
+    source.buffer = decoded;
+    source.connect(audioCtx!.destination);
+    // 1s delay after text appears
+    source.start(audioCtx!.currentTime + 1);
+  }).catch((err) => {
+    console.error("[TTS] AudioContext decode failed:", err);
+  });
 }
 
 export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIProctorProps) {
@@ -42,7 +54,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
       }
 
       setCurrentQuestion(data.question);
-      speakDelayed(data.question);
+      if (data.audio) playAudioDelayed(data.audio);
     } finally {
       setIsLoading(false);
     }
@@ -141,7 +153,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
       onPhaseComplete();
     } else if (data.eval === "probe" && data.followUp) {
       setCurrentQuestion(data.followUp);
-      speakDelayed(data.followUp);
+      if (data.audio) playAudioDelayed(data.audio);
     } else {
       fetchQuestion();
     }
