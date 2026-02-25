@@ -179,7 +179,12 @@ export default function SessionPage() {
           <AIProctor key="lab" sessionId={sessionId} phase="lab" onPhaseComplete={fetchStatus} />
         </div>
         <div className="w-[70%]">
-          {session.containerUrl ? (
+          {submitting ? (
+            <div className="flex items-center justify-center h-full gap-3">
+              <div className="w-5 h-5 border-2 border-border border-t-accent rounded-full animate-spin" />
+              <p className="text-muted-foreground">Submitting your work...</p>
+            </div>
+          ) : session.containerUrl ? (
             <VNCViewer url={`${session.containerUrl}/vnc.html`} />
           ) : (
             <div className="flex items-center justify-center h-full">

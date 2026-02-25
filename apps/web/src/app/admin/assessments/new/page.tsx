@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 
 const STEPS = ["General", "Intro", "Domain", "Lab", "Review"];
 
+interface QuestionDraft {
+  text: string;
+  followUps: string[];
+}
+
 interface CheckpointDraft {
   name: string;
   description: string;
@@ -25,20 +30,15 @@ export default function NewAssessmentPage() {
     timeLimit: 1800,
   });
 
-  const [introQuestions, setIntroQuestions] = useState<string[]>([
-    "Tell me about yourself and your background.",
-    "What's your experience with PCB design or electronics?",
-    "What motivated you to take this assessment?",
+  const [introQuestions, setIntroQuestions] = useState<QuestionDraft[]>([
+    { text: "Tell me about yourself and your background.", followUps: [] },
+    { text: "What's your experience with PCB design or electronics?", followUps: [] },
+    { text: "What motivated you to take this assessment?", followUps: [] },
   ]);
-  const [introAdaptive, setIntroAdaptive] = useState(false);
-  const [introProbeDepth, setIntroProbeDepth] = useState(1);
 
-  const [domainQuestions, setDomainQuestions] = useState<string[]>([""]);
-  const [domainAdaptive, setDomainAdaptive] = useState(true);
-  const [domainProbeDepth, setDomainProbeDepth] = useState(2);
-  const [domainPrompt, setDomainPrompt] = useState(
-    "You are evaluating a candidate's technical knowledge. Based on their previous answers, either probe deeper on weak areas or advance. Focus on practical understanding."
-  );
+  const [domainQuestions, setDomainQuestions] = useState<QuestionDraft[]>([
+    { text: "", followUps: [] },
+  ]);
 
   const [problemStatement, setProblemStatement] = useState("");
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
@@ -47,22 +47,54 @@ export default function NewAssessmentPage() {
     { name: "", description: "", weight: 0 },
   ]);
 
-  function addQuestion(list: string[], setList: (v: string[]) => void) {
-    setList([...list, ""]);
-  }
-
-  function updateQuestion(list: string[], setList: (v: string[]) => void, i: number, val: string) {
+  function updateQuestion(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number, text: string) {
     const next = [...list];
-    next[i] = val;
+    next[i] = { ...next[i], text };
     setList(next);
   }
 
-  function removeQuestion(list: string[], setList: (v: string[]) => void, i: number) {
+  function removeQuestion(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number) {
     setList(list.filter((_, j) => j !== i));
+  }
+
+  function addFollowUp(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number) {
+    const next = [...list];
+    next[i] = { ...next[i], followUps: [...next[i].followUps, ""] };
+    setList(next);
+  }
+
+  function updateFollowUp(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, qi: number, fi: number, val: string) {
+    const next = [...list];
+    const fups = [...next[qi].followUps];
+    fups[fi] = val;
+    next[qi] = { ...next[qi], followUps: fups };
+    setList(next);
+  }
+
+  function removeFollowUp(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, qi: number, fi: number) {
+    const next = [...list];
+    next[qi] = { ...next[qi], followUps: next[qi].followUps.filter((_, j) => j !== fi) };
+    setList(next);
   }
 
   function totalWeight() {
     return checkpoints.reduce((s, c) => s + c.weight, 0);
+  }
+
+  function filterQuestions(list: QuestionDraft[]) {
+    return list
+      .filter((q) => q.text.trim())
+      .map((q) => ({
+        text: q.text.trim(),
+        ...(q.followUps.filter((f) => f.trim()).length > 0
+          ? { followUps: q.followUps.filter((f) => f.trim()) }
+          : {}),
+      }));
+  }
+
+  function countTotal(list: QuestionDraft[]) {
+    const filtered = filterQuestions(list);
+    return filtered.reduce((s, q) => s + 1 + (q.followUps?.length ?? 0), 0);
   }
 
   async function handleCreate() {
@@ -77,19 +109,8 @@ export default function NewAssessmentPage() {
 
     const payload = {
       ...general,
-      introConfig: {
-        questions: introQuestions.filter((q) => q.trim()),
-        adaptive: introAdaptive,
-        maxQuestions: introQuestions.filter((q) => q.trim()).length,
-        maxProbeDepth: introAdaptive ? introProbeDepth : 0,
-      },
-      domainConfig: {
-        questions: domainQuestions.filter((q) => q.trim()),
-        adaptive: domainAdaptive,
-        maxQuestions: domainQuestions.filter((q) => q.trim()).length,
-        adaptivePrompt: domainPrompt,
-        maxProbeDepth: domainAdaptive ? domainProbeDepth : 0,
-      },
+      introConfig: { questions: filterQuestions(introQuestions) },
+      domainConfig: { questions: filterQuestions(domainQuestions) },
       labConfig: {
         problemStatement,
         rubric: { strictOrder, checkpoints: checkpoints.filter((c) => c.name.trim()) },
@@ -121,6 +142,45 @@ export default function NewAssessmentPage() {
     }
 
     router.push("/admin/assessments");
+  }
+
+  function renderQuestionList(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, label: string) {
+    return (
+      <div className="space-y-4">
+        <label className="text-sm text-foreground/60">{label}</label>
+        {list.map((q, i) => (
+          <div key={i} className="space-y-2">
+            <div className="flex gap-2">
+              <input
+                value={q.text}
+                onChange={(e) => updateQuestion(list, setList, i, e.target.value)}
+                placeholder={`Question ${i + 1}`}
+                className="flex-1 p-2 border border-foreground/15 rounded bg-background text-sm"
+              />
+              <button onClick={() => removeQuestion(list, setList, i)}
+                className="text-red-500/60 hover:text-red-500 text-xs px-2">remove</button>
+            </div>
+            {q.followUps.map((f, fi) => (
+              <div key={fi} className="flex gap-2 ml-6">
+                <span className="text-foreground/30 text-xs mt-2.5">↳</span>
+                <input
+                  value={f}
+                  onChange={(e) => updateFollowUp(list, setList, i, fi, e.target.value)}
+                  placeholder={`Follow-up ${fi + 1}`}
+                  className="flex-1 p-2 border border-foreground/10 rounded bg-background text-sm"
+                />
+                <button onClick={() => removeFollowUp(list, setList, i, fi)}
+                  className="text-red-500/60 hover:text-red-500 text-xs px-2">x</button>
+              </div>
+            ))}
+            <button onClick={() => addFollowUp(list, setList, i)}
+              className="text-xs text-foreground/30 hover:text-foreground/60 ml-6">+ Add follow-up</button>
+          </div>
+        ))}
+        <button onClick={() => setList([...list, { text: "", followUps: [] }])}
+          className="text-sm text-foreground/40 hover:text-foreground/70">+ Add question</button>
+      </div>
+    );
   }
 
   return (
@@ -189,79 +249,10 @@ export default function NewAssessmentPage() {
       )}
 
       {/* Step 2: Intro */}
-      {step === 1 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <label className="text-sm text-foreground/60">Intro Questions</label>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={introAdaptive} onChange={(e) => setIntroAdaptive(e.target.checked)} />
-                Adaptive
-              </label>
-              {introAdaptive && (
-                <label className="flex items-center gap-1.5 text-sm text-foreground/60">
-                  Probe depth
-                  <input type="number" min={1} max={5} value={introProbeDepth}
-                    onChange={(e) => setIntroProbeDepth(Number(e.target.value))}
-                    className="w-14 p-1 border border-foreground/15 rounded bg-background text-sm text-center" />
-                </label>
-              )}
-            </div>
-          </div>
-          {introQuestions.map((q, i) => (
-            <div key={i} className="flex gap-2">
-              <input value={q} onChange={(e) => updateQuestion(introQuestions, setIntroQuestions, i, e.target.value)}
-                placeholder={`Question ${i + 1}`}
-                className="flex-1 p-2 border border-foreground/15 rounded bg-background text-sm" />
-              <button onClick={() => removeQuestion(introQuestions, setIntroQuestions, i)}
-                className="text-red-500/60 hover:text-red-500 text-xs px-2">remove</button>
-            </div>
-          ))}
-          <button onClick={() => addQuestion(introQuestions, setIntroQuestions)}
-            className="text-sm text-foreground/40 hover:text-foreground/70">+ Add question</button>
-        </div>
-      )}
+      {step === 1 && renderQuestionList(introQuestions, setIntroQuestions, "Intro Questions")}
 
       {/* Step 3: Domain */}
-      {step === 2 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <label className="text-sm text-foreground/60">Domain Questions</label>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={domainAdaptive} onChange={(e) => setDomainAdaptive(e.target.checked)} />
-                Adaptive
-              </label>
-              {domainAdaptive && (
-                <label className="flex items-center gap-1.5 text-sm text-foreground/60">
-                  Probe depth
-                  <input type="number" min={1} max={5} value={domainProbeDepth}
-                    onChange={(e) => setDomainProbeDepth(Number(e.target.value))}
-                    className="w-14 p-1 border border-foreground/15 rounded bg-background text-sm text-center" />
-                </label>
-              )}
-            </div>
-          </div>
-          {domainQuestions.map((q, i) => (
-            <div key={i} className="flex gap-2">
-              <input value={q} onChange={(e) => updateQuestion(domainQuestions, setDomainQuestions, i, e.target.value)}
-                placeholder={`Question ${i + 1}`}
-                className="flex-1 p-2 border border-foreground/15 rounded bg-background text-sm" />
-              <button onClick={() => removeQuestion(domainQuestions, setDomainQuestions, i)}
-                className="text-red-500/60 hover:text-red-500 text-xs px-2">remove</button>
-            </div>
-          ))}
-          <button onClick={() => addQuestion(domainQuestions, setDomainQuestions)}
-            className="text-sm text-foreground/40 hover:text-foreground/70">+ Add question</button>
-          {domainAdaptive && (
-            <div>
-              <label className="text-sm text-foreground/60 block mb-1">Adaptive Prompt</label>
-              <textarea value={domainPrompt} onChange={(e) => setDomainPrompt(e.target.value)}
-                rows={3} className="w-full p-2 border border-foreground/15 rounded bg-background text-sm resize-none" />
-            </div>
-          )}
-        </div>
-      )}
+      {step === 2 && renderQuestionList(domainQuestions, setDomainQuestions, "Domain Questions")}
 
       {/* Step 4: Lab */}
       {step === 3 && (
@@ -352,12 +343,26 @@ export default function NewAssessmentPage() {
             <p><span className="text-foreground/50">Time:</span> {Math.round(general.timeLimit / 60)} min</p>
           </div>
           <div className="border border-foreground/10 rounded p-4 space-y-2">
-            <h3 className="font-semibold">Intro ({introQuestions.filter(q => q.trim()).length} questions{introAdaptive ? `, adaptive, depth ${introProbeDepth}` : ""})</h3>
-            {introQuestions.filter(q => q.trim()).map((q, i) => <p key={i} className="text-foreground/60">{i + 1}. {q}</p>)}
+            <h3 className="font-semibold">Intro ({countTotal(introQuestions)} total questions)</h3>
+            {filterQuestions(introQuestions).map((q, i) => (
+              <div key={i}>
+                <p className="text-foreground/60">{i + 1}. {q.text}</p>
+                {q.followUps?.map((f, fi) => (
+                  <p key={fi} className="text-foreground/40 ml-6">↳ {f}</p>
+                ))}
+              </div>
+            ))}
           </div>
           <div className="border border-foreground/10 rounded p-4 space-y-2">
-            <h3 className="font-semibold">Domain ({domainQuestions.filter(q => q.trim()).length} questions{domainAdaptive ? `, adaptive, depth ${domainProbeDepth}` : ""})</h3>
-            {domainQuestions.filter(q => q.trim()).map((q, i) => <p key={i} className="text-foreground/60">{i + 1}. {q}</p>)}
+            <h3 className="font-semibold">Domain ({countTotal(domainQuestions)} total questions)</h3>
+            {filterQuestions(domainQuestions).map((q, i) => (
+              <div key={i}>
+                <p className="text-foreground/60">{i + 1}. {q.text}</p>
+                {q.followUps?.map((f, fi) => (
+                  <p key={fi} className="text-foreground/40 ml-6">↳ {f}</p>
+                ))}
+              </div>
+            ))}
           </div>
           <div className="border border-foreground/10 rounded p-4 space-y-2">
             <h3 className="font-semibold">Lab ({checkpoints.filter(c => c.name.trim()).length} checkpoints, {totalWeight()}/100 weight{strictOrder ? ", strict order" : ""})</h3>

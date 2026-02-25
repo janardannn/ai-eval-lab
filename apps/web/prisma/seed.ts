@@ -16,25 +16,25 @@ async function main() {
       timeLimit: 1800,
       introConfig: {
         questions: [
-          "Tell me a bit about yourself — your name, background, and what you're currently working on or studying.",
-          "How did you first get into electronics or PCB design? Walk me through your journey.",
-          "What are you hoping to demonstrate in this assessment today?",
+          { text: "Tell me a bit about yourself — your name, background, and what you're currently working on or studying." },
+          { text: "How did you first get into electronics or PCB design? Walk me through your journey." },
+          { text: "What are you hoping to demonstrate in this assessment today?" },
         ],
-        adaptive: false,
-        maxQuestions: 3,
       },
       domainConfig: {
         questions: [
-          "Can you explain what a current limiting resistor does in an LED circuit, and why it's necessary?",
-          "Walk me through how you'd calculate the right resistor value for an LED given the supply voltage, LED forward voltage, and desired current.",
-          "What would happen electrically if you connected an LED directly to a 5V source without a resistor?",
-          "In KiCad, what's the difference between the F.Cu and B.Cu layers, and when would you route on each?",
-          "After routing a PCB, how do you verify your design is correct before fabrication?",
+          {
+            text: "Can you explain what a current limiting resistor does in an LED circuit, and why it's necessary?",
+            followUps: ["How would you calculate the right resistor value given supply voltage, LED forward voltage, and desired current?"],
+          },
+          { text: "What would happen electrically if you connected an LED directly to a 5V source without a resistor?" },
+          {
+            text: "In KiCad, what's the difference between the F.Cu and B.Cu layers, and when would you route on each?",
+          },
+          {
+            text: "After routing a PCB, how do you verify your design is correct before fabrication?",
+          },
         ],
-        adaptive: true,
-        maxQuestions: 5,
-        adaptivePrompt:
-          "Generate questions testing practical understanding of basic PCB design and LED circuits — not memorized definitions. If an answer is vague, probe for specifics. If an answer shows strong understanding, move to the next topic.",
       },
       labConfig: {
         problemStatement:
@@ -94,25 +94,29 @@ async function main() {
       timeLimit: 2700,
       introConfig: {
         questions: [
-          "Tell me a bit about yourself — your name, what you study or work on, and your experience level with electronics.",
-          "Have you designed a PCB before? If so, describe the most complex board you've worked on.",
-          "What aspects of PCB design do you find most challenging, and why?",
+          { text: "Tell me a bit about yourself — your name, what you study or work on, and your experience level with electronics." },
+          { text: "Have you designed a PCB before? If so, describe the most complex board you've worked on." },
+          { text: "What aspects of PCB design do you find most challenging, and why?" },
         ],
-        adaptive: false,
-        maxQuestions: 3,
       },
       domainConfig: {
         questions: [
-          "What is a bypass capacitor, and why do you place them close to IC power pins rather than elsewhere on the board?",
-          "If you have a 5V supply and an LED with a 2V forward voltage that needs 15mA, walk me through the resistor calculation.",
-          "Explain the difference between a ground plane and individual ground traces. When would you use each approach?",
-          "Why does component placement order matter in PCB design? What do you typically place first and why?",
-          "What is DRC in KiCad, what types of errors does it catch, and at what stage of design should you run it?",
+          {
+            text: "What is a bypass capacitor, and why do you place them close to IC power pins rather than elsewhere on the board?",
+            followUps: ["What value bypass capacitor would you typically use for a microcontroller, and why?"],
+          },
+          {
+            text: "If you have a 5V supply and an LED with a 2V forward voltage that needs 15mA, walk me through the resistor calculation.",
+          },
+          {
+            text: "Explain the difference between a ground plane and individual ground traces. When would you use each approach?",
+          },
+          { text: "Why does component placement order matter in PCB design? What do you typically place first and why?" },
+          {
+            text: "What is DRC in KiCad, what types of errors does it catch, and at what stage of design should you run it?",
+            followUps: ["What's the difference between a DRC error and a DRC warning?"],
+          },
         ],
-        adaptive: true,
-        maxQuestions: 5,
-        adaptivePrompt:
-          "Generate intermediate-level questions on PCB design: power distribution, component placement strategy, and design validation. Probe deeper when answers lack specifics. If the candidate demonstrates strong understanding, advance quickly.",
       },
       labConfig: {
         problemStatement:

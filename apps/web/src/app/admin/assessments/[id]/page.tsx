@@ -10,19 +10,13 @@ interface Checkpoint {
   weight: number;
 }
 
-interface IntroConfig {
-  questions: string[];
-  adaptive: boolean;
-  maxQuestions: number;
-  maxProbeDepth?: number;
+interface QuestionItem {
+  text: string;
+  followUps?: string[];
 }
 
-interface DomainConfig {
-  questions: string[];
-  adaptive: boolean;
-  maxQuestions: number;
-  adaptivePrompt?: string;
-  maxProbeDepth?: number;
+interface PhaseConfig {
+  questions: QuestionItem[];
 }
 
 interface LabConfig {
@@ -37,11 +31,16 @@ interface Assessment {
   description: string;
   environment: string;
   timeLimit: number;
-  introConfig: IntroConfig;
-  domainConfig: DomainConfig;
+  introConfig: PhaseConfig;
+  domainConfig: PhaseConfig;
   labConfig: LabConfig;
   referenceFile: boolean;
   isActive: boolean;
+}
+
+interface QuestionDraft {
+  text: string;
+  followUps: string[];
 }
 
 export default function AssessmentDetailPage() {
@@ -57,14 +56,8 @@ export default function AssessmentDetailPage() {
   const [difficulty, setDifficulty] = useState("easy");
   const [timeLimit, setTimeLimit] = useState(30);
 
-  const [introQuestions, setIntroQuestions] = useState<string[]>([]);
-  const [introAdaptive, setIntroAdaptive] = useState(false);
-  const [introProbeDepth, setIntroProbeDepth] = useState(1);
-
-  const [domainQuestions, setDomainQuestions] = useState<string[]>([]);
-  const [domainAdaptive, setDomainAdaptive] = useState(true);
-  const [domainProbeDepth, setDomainProbeDepth] = useState(2);
-  const [domainPrompt, setDomainPrompt] = useState("");
+  const [introQuestions, setIntroQuestions] = useState<QuestionDraft[]>([]);
+  const [domainQuestions, setDomainQuestions] = useState<QuestionDraft[]>([]);
 
   const [problemStatement, setProblemStatement] = useState("");
   const [strictOrder, setStrictOrder] = useState(false);
@@ -79,68 +72,71 @@ export default function AssessmentDetailPage() {
       });
   }, [id]);
 
+  function toDrafts(items: QuestionItem[]): QuestionDraft[] {
+    return items.map((q) => ({ text: q.text, followUps: [...(q.followUps || [])] }));
+  }
+
   function populateForm(a: Assessment) {
     setTitle(a.title);
     setDescription(a.description);
     setDifficulty(a.difficulty);
     setTimeLimit(Math.round(a.timeLimit / 60));
-    setIntroQuestions([...a.introConfig.questions]);
-    setIntroAdaptive(a.introConfig.adaptive);
-    setIntroProbeDepth(a.introConfig.maxProbeDepth ?? 1);
-    setDomainQuestions([...a.domainConfig.questions]);
-    setDomainAdaptive(a.domainConfig.adaptive);
-    setDomainProbeDepth(a.domainConfig.maxProbeDepth ?? 2);
-    setDomainPrompt(a.domainConfig.adaptivePrompt || "");
+    setIntroQuestions(toDrafts(a.introConfig.questions));
+    setDomainQuestions(toDrafts(a.domainConfig.questions));
     setProblemStatement(a.labConfig.problemStatement);
     setStrictOrder(a.labConfig.rubric.strictOrder ?? false);
     setCheckpoints(a.labConfig.rubric.checkpoints.map(({ name, description, weight }) => ({ name, description, weight })));
   }
 
-  function startEditing() {
-    if (data) populateForm(data);
-    setEditing(true);
+  function startEditing() { if (data) populateForm(data); setEditing(true); }
+  function cancelEditing() { if (data) populateForm(data); setEditing(false); }
+
+  function totalWeight() { return checkpoints.reduce((s, c) => s + c.weight, 0); }
+
+  function filterQuestions(list: QuestionDraft[]) {
+    return list
+      .filter((q) => q.text.trim())
+      .map((q) => ({
+        text: q.text.trim(),
+        ...(q.followUps.filter((f) => f.trim()).length > 0
+          ? { followUps: q.followUps.filter((f) => f.trim()) }
+          : {}),
+      }));
   }
 
-  function cancelEditing() {
-    if (data) populateForm(data);
-    setEditing(false);
+  function updateQuestion(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number, text: string) {
+    const next = [...list]; next[i] = { ...next[i], text }; setList(next);
   }
 
-  function totalWeight() {
-    return checkpoints.reduce((s, c) => s + c.weight, 0);
+  function removeQuestion(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number) {
+    setList(list.filter((_, j) => j !== i));
+  }
+
+  function addFollowUp(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number) {
+    const next = [...list]; next[i] = { ...next[i], followUps: [...next[i].followUps, ""] }; setList(next);
+  }
+
+  function updateFollowUp(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, qi: number, fi: number, val: string) {
+    const next = [...list]; const fups = [...next[qi].followUps]; fups[fi] = val;
+    next[qi] = { ...next[qi], followUps: fups }; setList(next);
+  }
+
+  function removeFollowUp(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, qi: number, fi: number) {
+    const next = [...list]; next[qi] = { ...next[qi], followUps: next[qi].followUps.filter((_, j) => j !== fi) }; setList(next);
   }
 
   async function handleSave() {
-    if (totalWeight() !== 100) {
-      alert("Checkpoint weights must sum to 100");
-      return;
-    }
+    if (totalWeight() !== 100) { alert("Checkpoint weights must sum to 100"); return; }
 
     setSaving(true);
-    const filteredIntro = introQuestions.filter((q) => q.trim());
-    const filteredDomain = domainQuestions.filter((q) => q.trim());
-
     await fetch(`/api/admin/assessments/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        title,
-        description,
-        difficulty,
+        title, description, difficulty,
         timeLimit: timeLimit * 60,
-        introConfig: {
-          questions: filteredIntro,
-          adaptive: introAdaptive,
-          maxQuestions: filteredIntro.length,
-          maxProbeDepth: introAdaptive ? introProbeDepth : 0,
-        },
-        domainConfig: {
-          questions: filteredDomain,
-          adaptive: domainAdaptive,
-          maxQuestions: filteredDomain.length,
-          adaptivePrompt: domainPrompt,
-          maxProbeDepth: domainAdaptive ? domainProbeDepth : 0,
-        },
+        introConfig: { questions: filterQuestions(introQuestions) },
+        domainConfig: { questions: filterQuestions(domainQuestions) },
         labConfig: {
           problemStatement,
           rubric: { strictOrder, checkpoints: checkpoints.filter((c) => c.name.trim()) },
@@ -159,13 +155,8 @@ export default function AssessmentDetailPage() {
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(`/api/admin/assessments/${id}/reference`, {
-      method: "POST",
-      body: formData,
-    });
-    if (res.ok) {
-      setData((prev) => prev ? { ...prev, referenceFile: true } : prev);
-    }
+    const res = await fetch(`/api/admin/assessments/${id}/reference`, { method: "POST", body: formData });
+    if (res.ok) setData((prev) => prev ? { ...prev, referenceFile: true } : prev);
     setUploading(false);
   }
 
@@ -173,6 +164,57 @@ export default function AssessmentDetailPage() {
 
   const inputClass = "w-full p-2 border border-foreground/15 rounded bg-background text-sm";
   const sectionClass = "border border-foreground/10 rounded p-4";
+
+  function renderQuestionEditor(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, label: string) {
+    return (
+      <div className={sectionClass}>
+        <h3 className="font-semibold mb-3">{label}</h3>
+        <div className="space-y-3">
+          {list.map((q, i) => (
+            <div key={i} className="space-y-2">
+              <div className="flex gap-2">
+                <input value={q.text} onChange={(e) => updateQuestion(list, setList, i, e.target.value)}
+                  placeholder={`Question ${i + 1}`} className={`flex-1 ${inputClass}`} />
+                <button onClick={() => removeQuestion(list, setList, i)}
+                  className="text-red-500/60 hover:text-red-500 text-xs px-2">remove</button>
+              </div>
+              {q.followUps.map((f, fi) => (
+                <div key={fi} className="flex gap-2 ml-6">
+                  <span className="text-foreground/30 text-xs mt-2.5">↳</span>
+                  <input value={f} onChange={(e) => updateFollowUp(list, setList, i, fi, e.target.value)}
+                    placeholder={`Follow-up ${fi + 1}`} className={`flex-1 ${inputClass}`} />
+                  <button onClick={() => removeFollowUp(list, setList, i, fi)}
+                    className="text-red-500/60 hover:text-red-500 text-xs px-2">x</button>
+                </div>
+              ))}
+              <button onClick={() => addFollowUp(list, setList, i)}
+                className="text-xs text-foreground/30 hover:text-foreground/60 ml-6">+ Add follow-up</button>
+            </div>
+          ))}
+          <button onClick={() => setList([...list, { text: "", followUps: [] }])}
+            className="text-sm text-foreground/40 hover:text-foreground/70">+ Add question</button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderQuestionReadonly(config: PhaseConfig, label: string) {
+    const total = config.questions.reduce((s, q) => s + 1 + (q.followUps?.length ?? 0), 0);
+    return (
+      <div className={sectionClass}>
+        <h3 className="font-semibold mb-2">{label}</h3>
+        <p className="text-foreground/50 mb-2">{total} total questions</p>
+        {config.questions.map((q, i) => (
+          <div key={i} className="mb-1">
+            <p className="text-foreground/60 ml-2">{i + 1}. {q.text}</p>
+            {q.followUps?.map((f, fi) => (
+              <p key={fi} className="text-foreground/40 ml-8">↳ {f}</p>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl">
@@ -226,78 +268,8 @@ export default function AssessmentDetailPage() {
             </div>
           </div>
 
-          {/* Intro */}
-          <div className={sectionClass}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">Intro Questions</h3>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={introAdaptive} onChange={(e) => setIntroAdaptive(e.target.checked)} />
-                  Adaptive
-                </label>
-                {introAdaptive && (
-                  <label className="flex items-center gap-1.5 text-xs text-foreground/50">
-                    Probe depth
-                    <input type="number" min={1} max={5} value={introProbeDepth}
-                      onChange={(e) => setIntroProbeDepth(Number(e.target.value))}
-                      className="w-14 p-1 border border-foreground/15 rounded bg-background text-sm text-center" />
-                  </label>
-                )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              {introQuestions.map((q, i) => (
-                <div key={i} className="flex gap-2">
-                  <input value={q} onChange={(e) => { const n = [...introQuestions]; n[i] = e.target.value; setIntroQuestions(n); }}
-                    placeholder={`Question ${i + 1}`} className={`flex-1 ${inputClass}`} />
-                  <button onClick={() => setIntroQuestions(introQuestions.filter((_, j) => j !== i))}
-                    className="text-red-500/60 hover:text-red-500 text-xs px-2">remove</button>
-                </div>
-              ))}
-              <button onClick={() => setIntroQuestions([...introQuestions, ""])}
-                className="text-sm text-foreground/40 hover:text-foreground/70">+ Add question</button>
-            </div>
-          </div>
-
-          {/* Domain */}
-          <div className={sectionClass}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">Domain Questions</h3>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={domainAdaptive} onChange={(e) => setDomainAdaptive(e.target.checked)} />
-                  Adaptive
-                </label>
-                {domainAdaptive && (
-                  <label className="flex items-center gap-1.5 text-xs text-foreground/50">
-                    Probe depth
-                    <input type="number" min={1} max={5} value={domainProbeDepth}
-                      onChange={(e) => setDomainProbeDepth(Number(e.target.value))}
-                      className="w-14 p-1 border border-foreground/15 rounded bg-background text-sm text-center" />
-                  </label>
-                )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              {domainQuestions.map((q, i) => (
-                <div key={i} className="flex gap-2">
-                  <input value={q} onChange={(e) => { const n = [...domainQuestions]; n[i] = e.target.value; setDomainQuestions(n); }}
-                    placeholder={`Question ${i + 1}`} className={`flex-1 ${inputClass}`} />
-                  <button onClick={() => setDomainQuestions(domainQuestions.filter((_, j) => j !== i))}
-                    className="text-red-500/60 hover:text-red-500 text-xs px-2">remove</button>
-                </div>
-              ))}
-              <button onClick={() => setDomainQuestions([...domainQuestions, ""])}
-                className="text-sm text-foreground/40 hover:text-foreground/70">+ Add question</button>
-            </div>
-            {domainAdaptive && (
-              <div className="mt-3">
-                <label className="text-xs text-foreground/50 block mb-1">Adaptive Prompt</label>
-                <textarea value={domainPrompt} onChange={(e) => setDomainPrompt(e.target.value)}
-                  rows={3} className={`${inputClass} resize-none`} />
-              </div>
-            )}
-          </div>
+          {renderQuestionEditor(introQuestions, setIntroQuestions, "Intro Questions")}
+          {renderQuestionEditor(domainQuestions, setDomainQuestions, "Domain Questions")}
 
           {/* Lab */}
           <div className={sectionClass}>
@@ -323,7 +295,7 @@ export default function AssessmentDetailPage() {
                   </div>
                 </div>
                 {strictOrder && (
-                  <p className="text-xs text-foreground/40 mb-2">Checkpoints must be completed in the order listed below. Drag to reorder.</p>
+                  <p className="text-xs text-foreground/40 mb-2">Checkpoints must be completed in the order listed below.</p>
                 )}
                 <div className="space-y-2">
                   {checkpoints.map((cp, i) => (
@@ -391,24 +363,8 @@ export default function AssessmentDetailPage() {
           </div>
           <p className="text-foreground/70 leading-relaxed">{data.description}</p>
 
-          <div className={sectionClass}>
-            <h3 className="font-semibold mb-2">Intro Config</h3>
-            <p className="text-foreground/50 mb-2">
-              {data.introConfig.questions.length} questions, {data.introConfig.adaptive ? `adaptive, depth ${data.introConfig.maxProbeDepth ?? "—"}` : "static"}
-            </p>
-            {data.introConfig.questions.map((q, i) => <p key={i} className="text-foreground/60 ml-2">{i + 1}. {q}</p>)}
-          </div>
-
-          <div className={sectionClass}>
-            <h3 className="font-semibold mb-2">Domain Config</h3>
-            <p className="text-foreground/50 mb-2">
-              {data.domainConfig.questions.length} questions, {data.domainConfig.adaptive ? `adaptive, depth ${data.domainConfig.maxProbeDepth ?? "—"}` : "static"}
-            </p>
-            {data.domainConfig.questions.map((q, i) => <p key={i} className="text-foreground/60 ml-2">{i + 1}. {q}</p>)}
-            {data.domainConfig.adaptivePrompt && (
-              <p className="text-foreground/40 mt-2 text-xs italic">{data.domainConfig.adaptivePrompt}</p>
-            )}
-          </div>
+          {renderQuestionReadonly(data.introConfig, "Intro Config")}
+          {renderQuestionReadonly(data.domainConfig, "Domain Config")}
 
           <div className={sectionClass}>
             <h3 className="font-semibold mb-2">Lab Config</h3>
