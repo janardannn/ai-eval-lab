@@ -173,18 +173,10 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
     }
   }
 
-  async function handleAnswerResponse(data: {
-    eval: string;
-    followUp?: string;
-    audio?: string;
-    nextPhase?: string;
-  }) {
+  async function handleAnswerResponse(data: { eval: string; nextPhase?: string }) {
     if (!aliveRef.current) return;
     if (data.eval === "done") {
       await onPhaseComplete();
-    } else if (data.eval === "probe" && data.followUp) {
-      setCurrentQuestion(data.followUp);
-      if (data.audio && aliveRef.current) playAudioDelayed(data.audio);
     } else {
       await fetchQuestion();
     }

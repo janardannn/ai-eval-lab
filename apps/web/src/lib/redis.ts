@@ -78,16 +78,15 @@ export async function getPendingQuestion(
   return redis.get(`pending_q:${sessionId}`);
 }
 
-// Probe depth tracking — how many cross-questions remain for current question chain
-export async function getProbeDepth(sessionId: string): Promise<number> {
-  const val = await redis.get(`probe_depth:${sessionId}`);
-  return val === null ? -1 : parseInt(val, 10);
+// Q&A position tracking — where we are in the question sequence per phase
+// qi = main question index, fi = follow-up index (-1 means the main question itself)
+export interface QAPosition { qi: number; fi: number }
+
+export async function getQAPosition(sessionId: string, phase: string): Promise<QAPosition> {
+  const val = await redis.get(`qa_pos:${sessionId}:${phase}`);
+  return val ? JSON.parse(val) : { qi: 0, fi: -1 };
 }
 
-export async function setProbeDepth(sessionId: string, depth: number) {
-  await redis.set(`probe_depth:${sessionId}`, depth.toString(), "EX", 600);
-}
-
-export async function clearProbeDepth(sessionId: string) {
-  await redis.del(`probe_depth:${sessionId}`);
+export async function setQAPosition(sessionId: string, phase: string, pos: QAPosition) {
+  await redis.set(`qa_pos:${sessionId}:${phase}`, JSON.stringify(pos), "EX", SESSION_TTL);
 }
