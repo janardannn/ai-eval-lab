@@ -192,6 +192,16 @@ export default function VerdictPage() {
           </div>
         </section>
 
+        <div className="text-xs text-muted-foreground/60 leading-relaxed border-t border-border pt-6">
+          <p>
+            For any queries regarding your assessment, reach out at{" "}
+            <a href={`mailto:ai.eval.lab@proton.me?subject=Assessment Query — ${sessionId}`} className="text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2">
+              ai.eval.lab@proton.me
+            </a>
+            {" "}with your assessment ID: <span className="font-mono text-muted-foreground">{sessionId}</span>
+          </p>
+        </div>
+
         <Link
           href="/"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
