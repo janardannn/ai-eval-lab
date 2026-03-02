@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Timer } from "@/components/Timer";
 import { AIProctor } from "@/components/AIProctor";
 import { VNCViewer } from "@/components/VNCViewer";
+import { WebcamPreview } from "@/components/WebcamPreview";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { useNudge } from "@/hooks/useNudge";
 
@@ -24,6 +25,22 @@ export default function SessionPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const cameraRequested = useRef(false);
+
+  useEffect(() => {
+    if (cameraRequested.current) return;
+    cameraRequested.current = true;
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      .then(setCameraStream)
+      .catch(() => {});
+    return () => {
+      setCameraStream((prev) => {
+        prev?.getTracks().forEach((t) => t.stop());
+        return null;
+      });
+    };
+  }, []);
 
   useHeartbeat(sessionId);
   const nudge = useNudge(sessionId, session?.phase === "lab");
@@ -90,9 +107,15 @@ export default function SessionPage() {
 
   if (session.phase === "intro") {
     return (
-      <main>
-        <div className="max-w-2xl mx-auto px-6 py-20">
-          <AIProctor key="intro" sessionId={sessionId} phase="intro" onPhaseComplete={fetchStatus} onEndExam={handleEndExam} />
+      <main className="min-h-[calc(100vh-4rem)] flex">
+        <div className="w-[30%] p-6 ring-1 ring-border bg-card/50 flex flex-col items-center pt-12">
+          <WebcamPreview stream={cameraStream} />
+          <p className="text-xs text-muted-foreground/50 mt-3">Camera preview</p>
+        </div>
+        <div className="w-[70%] p-6 flex items-center">
+          <div className="max-w-xl mx-auto w-full">
+            <AIProctor key="intro" sessionId={sessionId} phase="intro" onPhaseComplete={fetchStatus} onEndExam={handleEndExam} />
+          </div>
         </div>
       </main>
     );
@@ -101,12 +124,18 @@ export default function SessionPage() {
   if (session.phase === "domain") {
     return (
       <main className="min-h-[calc(100vh-4rem)] flex">
-        <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[70%]"} p-6 ring-1 ring-border`}>
+        <div className="w-[30%] p-6 ring-1 ring-border bg-card/50 flex flex-col items-center pt-12">
+          <WebcamPreview stream={cameraStream} />
+          <p className="text-xs text-muted-foreground/50 mt-3">Camera preview</p>
+        </div>
+        <div className="w-[70%] p-6 ring-1 ring-border">
           <AIProctor key="domain" sessionId={sessionId} phase="domain" onPhaseComplete={fetchStatus} onEndExam={handleEndExam} />
         </div>
+        {/* TODO: reference materials pane — think of feasibility later
         <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[30%]"} p-6 flex items-center justify-center bg-muted/50 ring-1 ring-border`}>
           <p className="text-muted-foreground">Reference materials will appear here</p>
         </div>
+        */}
       </main>
     );
   }
@@ -155,6 +184,9 @@ export default function SessionPage() {
 
       <div className="flex flex-1 min-h-0">
         <div className="w-[30%] p-4 ring-1 ring-border bg-card/50 overflow-y-auto">
+          <div className="mb-4">
+            <WebcamPreview stream={cameraStream} compact />
+          </div>
           {nudge.message && (
             <div className="mb-4 p-3 rounded-md ring-1 ring-yellow-500/20 bg-yellow-500/10">
               <div className="flex items-start justify-between gap-2">
