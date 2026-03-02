@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionState, getQAPosition, setPendingQuestion } from "@/lib/redis";
-import { textToSpeech } from "@/lib/tts";
+import { textToSpeech, questionTextHash } from "@/lib/tts";
 
 interface FollowUpItem {
   text: string;
@@ -93,10 +93,28 @@ export async function POST(
 
   await setPendingQuestion(sessionId, result.text);
 
+  // Smooth transition delay instead of instant snap
+  await new Promise((resolve) => setTimeout(resolve, 800));
+
   let audioBase64: string | null = null;
   try {
-    const audioBuffer = await textToSpeech(result.text);
-    audioBase64 = audioBuffer.toString("base64");
+    const cached = await prisma.questionAudio.findUnique({
+      where: {
+        assessmentId_textHash: {
+          assessmentId: session.assessmentId,
+          textHash: questionTextHash(result.text),
+        },
+      },
+      select: { audio: true },
+    });
+
+    if (cached) {
+      audioBase64 = Buffer.from(cached.audio).toString("base64");
+    } else {
+      console.warn("[TTS] No pre-generated audio, generating on-the-fly:", result.text.substring(0, 60));
+      const audioBuffer = await textToSpeech(result.text);
+      audioBase64 = audioBuffer.toString("base64");
+    }
   } catch (err) {
     console.error("[TTS] question route failed:", err);
   }

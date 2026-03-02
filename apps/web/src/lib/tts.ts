@@ -1,4 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
+import { createHash } from "crypto";
+
+export function questionTextHash(text: string): string {
+  return createHash("sha256").update(text.trim()).digest("hex");
+}
 
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 const VOICE = "Achernar";

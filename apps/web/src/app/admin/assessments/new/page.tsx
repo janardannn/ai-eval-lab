@@ -28,6 +28,7 @@ export default function NewAssessmentPage() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ttsProgress, setTtsProgress] = useState<{ total: number } | null>(null);
 
   const [general, setGeneral] = useState({
     title: "",
@@ -198,6 +199,19 @@ export default function NewAssessmentPage() {
       });
     }
 
+    const total = countTotal(introQuestions) + countTotal(domainQuestions);
+    setTtsProgress({ total });
+    setSaving(false);
+
+    try {
+      await fetch(`/api/admin/assessments/${created.id}/generate-tts`, {
+        method: "POST",
+      });
+    } catch {
+      // TTS generation failed but assessment was created — continue
+    }
+
+    setTtsProgress(null);
     router.push("/admin/assessments");
   }
 
@@ -277,6 +291,20 @@ export default function NewAssessmentPage() {
 
   return (
     <div className="max-w-3xl">
+      {ttsProgress && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-background ring-1 ring-foreground/10 rounded-lg p-8 max-w-sm text-center space-y-4">
+            <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin mx-auto" />
+            <div>
+              <p className="text-sm font-medium">Generating Audio</p>
+              <p className="text-xs text-foreground/50 mt-1">
+                {ttsProgress.total} questions to process...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <h1 className="text-2xl font-bold mb-6">New Assessment</h1>
 
       {/* Step indicator */}

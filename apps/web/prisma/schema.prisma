@@ -60,20 +60,21 @@ model VerificationToken {
 // App models
 
 model Assessment {
-  id            String    @id @default(cuid())
-  title         String
-  difficulty    String
-  description   String    @db.Text
-  environment   String    @default("kicad")
-  timeLimit     Int
-  introConfig   Json
-  domainConfig  Json
-  labConfig     Json
-  referenceFile Bytes?
-  isActive      Boolean   @default(true)
-  sessions      Session[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String          @id @default(cuid())
+  title          String
+  difficulty     String
+  description    String          @db.Text
+  environment    String          @default("kicad")
+  timeLimit      Int
+  introConfig    Json
+  domainConfig   Json
+  labConfig      Json
+  referenceFile  Bytes?
+  isActive       Boolean         @default(true)
+  sessions       Session[]
+  questionAudios QuestionAudio[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 model Session {
@@ -119,6 +120,19 @@ model QAPair {
   createdAt DateTime @default(now())
 
   @@index([sessionId, timestamp])
+}
+
+model QuestionAudio {
+  id           String     @id @default(cuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  textHash     String
+  questionText String     @db.Text
+  audio        Bytes
+  createdAt    DateTime   @default(now())
+
+  @@unique([assessmentId, textHash])
+  @@index([assessmentId])
 }
 
 model Grade {
