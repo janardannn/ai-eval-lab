@@ -566,9 +566,13 @@ export default function AssessmentDetailPage() {
             <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${data.isActive ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"}`}>
               {data.isActive ? "Active" : "Inactive"}
             </span>
-            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-foreground/5 text-foreground/60 capitalize">{data.difficulty}</span>
-            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-foreground/5 text-foreground/60 uppercase">{data.environment}</span>
-            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-foreground/5 text-foreground/60">{Math.round(data.timeLimit / 60)} min lab</span>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${
+              data.difficulty === "easy" ? "bg-green-500/10 text-green-500"
+                : data.difficulty === "medium" ? "bg-yellow-500/10 text-yellow-500"
+                : "bg-red-500/10 text-red-500"
+            }`}>{data.difficulty}</span>
+            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 uppercase">{data.environment}</span>
+            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400">{Math.round(data.timeLimit / 60)} min lab</span>
           </div>
 
           {data.description && (
