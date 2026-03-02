@@ -132,6 +132,9 @@ export function useAudioRecorder(): AudioRecorderState {
       setIsRecording(true);
     } catch (err) {
       console.error("[useAudioRecorder] startRecording failed:", err);
+      isRecordingRef.current = false;
+      setIsRecording(false);
+      setAnalyser(null);
       if (err instanceof DOMException) {
         if (err.name === "NotFoundError") {
           setMicError("No microphone found. Close other tabs using the mic and try again.");

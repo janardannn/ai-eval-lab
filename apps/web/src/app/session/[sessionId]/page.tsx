@@ -110,6 +110,7 @@ export default function SessionPage() {
   async function handleEndExam() {
     setSubmitting(true);
     stopCamera();
+    recorder.stopRecording();
     try {
       await fetch(`/api/session/${sessionId}/end`, { method: "POST" });
       router.push(`/session/${sessionId}/verdict`);
