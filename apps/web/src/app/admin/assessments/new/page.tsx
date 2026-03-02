@@ -38,13 +38,13 @@ export default function NewAssessmentPage() {
   });
 
   const [introQuestions, setIntroQuestions] = useState<QuestionDraft[]>([
-    { text: "Tell me about yourself and your background.", timeLimit: 0, followUps: [] },
-    { text: "What's your experience with PCB design or electronics?", timeLimit: 0, followUps: [] },
-    { text: "What motivated you to take this assessment?", timeLimit: 0, followUps: [] },
+    { text: "Tell me about yourself and your background.", timeLimit: 2, followUps: [] },
+    { text: "What's your experience with PCB design or electronics?", timeLimit: 2, followUps: [] },
+    { text: "What motivated you to take this assessment?", timeLimit: 2, followUps: [] },
   ]);
 
   const [domainQuestions, setDomainQuestions] = useState<QuestionDraft[]>([
-    { text: "", timeLimit: 0, followUps: [] },
+    { text: "", timeLimit: 2, followUps: [] },
   ]);
 
   const [problemStatement, setProblemStatement] = useState("");
@@ -117,17 +117,31 @@ export default function NewAssessmentPage() {
         const validFollowUps = q.followUps.filter((f) => f.text.trim());
         return {
           text: q.text.trim(),
-          ...(q.timeLimit > 0 ? { timeLimit: q.timeLimit * 60 } : {}),
+          timeLimit: q.timeLimit * 60,
           ...(validFollowUps.length > 0
             ? {
                 followUps: validFollowUps.map((f) => ({
                   text: f.text.trim(),
-                  ...(f.sameAsParent || f.timeLimit <= 0 ? {} : { timeLimit: f.timeLimit * 60 }),
+                  ...(!f.sameAsParent && f.timeLimit > 0 ? { timeLimit: f.timeLimit * 60 } : {}),
                 })),
               }
             : {}),
         };
       });
+  }
+
+  function validateQuestionTimers(list: QuestionDraft[]): string | null {
+    for (let i = 0; i < list.length; i++) {
+      const q = list[i];
+      if (!q.text.trim()) continue;
+      if (q.timeLimit <= 0) return `Question ${i + 1} is missing a time limit`;
+      for (let fi = 0; fi < q.followUps.length; fi++) {
+        const f = q.followUps[fi];
+        if (!f.text.trim()) continue;
+        if (!f.sameAsParent && f.timeLimit <= 0) return `Follow-up ${fi + 1} of question ${i + 1} is missing a time limit`;
+      }
+    }
+    return null;
   }
 
   function countTotal(list: QuestionDraft[]) {
@@ -137,6 +151,12 @@ export default function NewAssessmentPage() {
   async function handleCreate() {
     setError(null);
     setSaving(true);
+
+    const introTimerErr = validateQuestionTimers(introQuestions);
+    if (introTimerErr) { setError(`Intro: ${introTimerErr}`); setSaving(false); return; }
+
+    const domainTimerErr = validateQuestionTimers(domainQuestions);
+    if (domainTimerErr) { setError(`Domain: ${domainTimerErr}`); setSaving(false); return; }
 
     if (totalWeight() !== 100) {
       setError("Checkpoint weights must sum to 100");
@@ -197,10 +217,11 @@ export default function NewAssessmentPage() {
               <div className="flex items-center gap-1">
                 <input
                   type="number"
+                  min={1}
                   value={q.timeLimit || ""}
                   onChange={(e) => updateQuestionTimeLimit(list, setList, i, Number(e.target.value))}
                   placeholder="min"
-                  className="w-16 p-2 border border-foreground/15 rounded bg-background text-sm text-center"
+                  className={`w-16 p-2 border rounded bg-background text-sm text-center ${q.timeLimit > 0 ? "border-foreground/15" : "border-red-500/50"}`}
                 />
                 <span className="text-xs text-foreground/30">m</span>
               </div>
@@ -221,12 +242,13 @@ export default function NewAssessmentPage() {
                     <div className="flex items-center gap-1">
                       <input
                         type="number"
+                        min={1}
                         value={f.timeLimit || ""}
                         onChange={(e) => updateFollowUpTimer(list, setList, i, fi, Number(e.target.value))}
-                        placeholder="sec"
-                        className="w-16 p-2 border border-foreground/10 rounded bg-background text-sm text-center"
+                        placeholder="min"
+                        className={`w-16 p-2 border rounded bg-background text-sm text-center ${f.timeLimit > 0 ? "border-foreground/10" : "border-red-500/50"}`}
                       />
-                      <span className="text-xs text-foreground/30">s</span>
+                      <span className="text-xs text-foreground/30">m</span>
                     </div>
                   )}
                   <button onClick={() => removeFollowUp(list, setList, i, fi)}
@@ -247,7 +269,7 @@ export default function NewAssessmentPage() {
               className="text-xs text-foreground/30 hover:text-foreground/60 ml-6">+ Add follow-up</button>
           </div>
         ))}
-        <button onClick={() => setList([...list, { text: "", timeLimit: 0, followUps: [] }])}
+        <button onClick={() => setList([...list, { text: "", timeLimit: 2, followUps: [] }])}
           className="text-sm text-foreground/40 hover:text-foreground/70">+ Add question</button>
       </div>
     );
