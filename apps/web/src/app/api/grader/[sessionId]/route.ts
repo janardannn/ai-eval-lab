@@ -87,13 +87,15 @@ export async function POST(
 
   await setSessionState(sessionId, { phase: "graded" });
 
-  sendCompletionEmail(
-    session.user.email!,
-    session.user.name,
-    session.assessment.title,
-    sessionId,
-    result.verdict
-  ).catch(() => {});
+  if (session.user.email) {
+    sendCompletionEmail(
+      session.user.email,
+      session.user.name,
+      session.assessment.title,
+      sessionId,
+      result.verdict
+    ).catch((err) => console.error("[Email] Failed to send:", err));
+  }
 
   return NextResponse.json({ status: "graded", verdict: result.verdict });
 }
