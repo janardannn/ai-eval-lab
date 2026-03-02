@@ -39,19 +39,8 @@ export default function VerdictPage() {
     async function poll() {
       try {
         const res = await fetch(`/api/grader/${sessionId}/report`);
-        if (res.ok) {
-          setReport(await res.json());
-          setLoading(false);
-          return;
-        }
 
-        if (res.status === 410) {
-          setError("This session was ended before grading could complete.");
-          setLoading(false);
-          return;
-        }
-
-        // 202 = still grading, keep polling
+        // 202 = still grading, keep polling (check before res.ok since 202 is also "ok")
         if (res.status === 202) {
           attempts.current++;
           if (attempts.current > 60) {
@@ -60,6 +49,18 @@ export default function VerdictPage() {
             return;
           }
           setTimeout(poll, 3000);
+          return;
+        }
+
+        if (res.status === 200) {
+          setReport(await res.json());
+          setLoading(false);
+          return;
+        }
+
+        if (res.status === 410) {
+          setError("This session was ended before grading could complete.");
+          setLoading(false);
           return;
         }
 
