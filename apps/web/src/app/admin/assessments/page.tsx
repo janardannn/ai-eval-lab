@@ -40,7 +40,7 @@ export default function AdminAssessmentsPage() {
   useEffect(() => {
     fetch("/api/admin/assessments")
       .then((r) => r.json())
-      .then(setAssessments)
+      .then((data) => { if (Array.isArray(data)) setAssessments(data); })
       .finally(() => setLoading(false));
   }, []);
 
