@@ -38,9 +38,16 @@ interface Assessment {
   isActive: boolean;
 }
 
+interface FollowUpDraft {
+  text: string;
+  timeLimit: number;
+  sameAsParent: boolean;
+}
+
 interface QuestionDraft {
   text: string;
-  followUps: string[];
+  timeLimit: number;
+  followUps: FollowUpDraft[];
 }
 
 export default function AssessmentDetailPage() {
@@ -73,7 +80,14 @@ export default function AssessmentDetailPage() {
   }, [id]);
 
   function toDrafts(items: QuestionItem[]): QuestionDraft[] {
-    return items.map((q) => ({ text: q.text, followUps: [...(q.followUps || [])] }));
+    return items.map((q) => ({
+      text: typeof q === "string" ? q : q.text,
+      timeLimit: (q as { timeLimit?: number }).timeLimit || 0,
+      followUps: (q.followUps || []).map((f: string | { text: string; timeLimit?: number }) => {
+        if (typeof f === "string") return { text: f, timeLimit: 0, sameAsParent: true };
+        return { text: f.text, timeLimit: f.timeLimit || 0, sameAsParent: !f.timeLimit };
+      }),
+    }));
   }
 
   function populateForm(a: Assessment) {
@@ -96,16 +110,29 @@ export default function AssessmentDetailPage() {
   function filterQuestions(list: QuestionDraft[]) {
     return list
       .filter((q) => q.text.trim())
-      .map((q) => ({
-        text: q.text.trim(),
-        ...(q.followUps.filter((f) => f.trim()).length > 0
-          ? { followUps: q.followUps.filter((f) => f.trim()) }
-          : {}),
-      }));
+      .map((q) => {
+        const validFollowUps = q.followUps.filter((f) => f.text.trim());
+        return {
+          text: q.text.trim(),
+          ...(q.timeLimit > 0 ? { timeLimit: q.timeLimit } : {}),
+          ...(validFollowUps.length > 0
+            ? {
+                followUps: validFollowUps.map((f) => ({
+                  text: f.text.trim(),
+                  ...(f.sameAsParent || f.timeLimit <= 0 ? {} : { timeLimit: f.timeLimit }),
+                })),
+              }
+            : {}),
+        };
+      });
   }
 
   function updateQuestion(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number, text: string) {
     const next = [...list]; next[i] = { ...next[i], text }; setList(next);
+  }
+
+  function updateQuestionTimeLimit(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number, timeLimit: number) {
+    const next = [...list]; next[i] = { ...next[i], timeLimit }; setList(next);
   }
 
   function removeQuestion(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number) {
@@ -113,11 +140,21 @@ export default function AssessmentDetailPage() {
   }
 
   function addFollowUp(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number) {
-    const next = [...list]; next[i] = { ...next[i], followUps: [...next[i].followUps, ""] }; setList(next);
+    const next = [...list]; next[i] = { ...next[i], followUps: [...next[i].followUps, { text: "", timeLimit: 0, sameAsParent: true }] }; setList(next);
   }
 
   function updateFollowUp(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, qi: number, fi: number, val: string) {
-    const next = [...list]; const fups = [...next[qi].followUps]; fups[fi] = val;
+    const next = [...list]; const fups = [...next[qi].followUps]; fups[fi] = { ...fups[fi], text: val };
+    next[qi] = { ...next[qi], followUps: fups }; setList(next);
+  }
+
+  function updateFollowUpTimer(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, qi: number, fi: number, timeLimit: number) {
+    const next = [...list]; const fups = [...next[qi].followUps]; fups[fi] = { ...fups[fi], timeLimit };
+    next[qi] = { ...next[qi], followUps: fups }; setList(next);
+  }
+
+  function toggleFollowUpSameAsParent(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, qi: number, fi: number) {
+    const next = [...list]; const fups = [...next[qi].followUps]; fups[fi] = { ...fups[fi], sameAsParent: !fups[fi].sameAsParent, timeLimit: 0 };
     next[qi] = { ...next[qi], followUps: fups }; setList(next);
   }
 
@@ -175,23 +212,41 @@ export default function AssessmentDetailPage() {
               <div className="flex gap-2">
                 <input value={q.text} onChange={(e) => updateQuestion(list, setList, i, e.target.value)}
                   placeholder={`Question ${i + 1}`} className={`flex-1 ${inputClass}`} />
+                <div className="flex items-center gap-1">
+                  <input type="number" value={q.timeLimit || ""} onChange={(e) => updateQuestionTimeLimit(list, setList, i, Number(e.target.value))}
+                    placeholder="sec" className="w-16 p-2 border border-foreground/15 rounded bg-background text-sm text-center" />
+                  <span className="text-xs text-foreground/30">s</span>
+                </div>
                 <button onClick={() => removeQuestion(list, setList, i)}
                   className="text-red-500/60 hover:text-red-500 text-xs px-2">remove</button>
               </div>
               {q.followUps.map((f, fi) => (
-                <div key={fi} className="flex gap-2 ml-6">
-                  <span className="text-foreground/30 text-xs mt-2.5">↳</span>
-                  <input value={f} onChange={(e) => updateFollowUp(list, setList, i, fi, e.target.value)}
-                    placeholder={`Follow-up ${fi + 1}`} className={`flex-1 ${inputClass}`} />
-                  <button onClick={() => removeFollowUp(list, setList, i, fi)}
-                    className="text-red-500/60 hover:text-red-500 text-xs px-2">x</button>
+                <div key={fi} className="space-y-1 ml-6">
+                  <div className="flex gap-2">
+                    <span className="text-foreground/30 text-xs mt-2.5">↳</span>
+                    <input value={f.text} onChange={(e) => updateFollowUp(list, setList, i, fi, e.target.value)}
+                      placeholder={`Follow-up ${fi + 1}`} className={`flex-1 ${inputClass}`} />
+                    {!f.sameAsParent && (
+                      <div className="flex items-center gap-1">
+                        <input type="number" value={f.timeLimit || ""} onChange={(e) => updateFollowUpTimer(list, setList, i, fi, Number(e.target.value))}
+                          placeholder="sec" className="w-16 p-2 border border-foreground/10 rounded bg-background text-sm text-center" />
+                        <span className="text-xs text-foreground/30">s</span>
+                      </div>
+                    )}
+                    <button onClick={() => removeFollowUp(list, setList, i, fi)}
+                      className="text-red-500/60 hover:text-red-500 text-xs px-2">x</button>
+                  </div>
+                  <label className="flex items-center gap-1.5 ml-5 cursor-pointer">
+                    <input type="checkbox" checked={f.sameAsParent} onChange={() => toggleFollowUpSameAsParent(list, setList, i, fi)} className="w-3 h-3" />
+                    <span className="text-xs text-foreground/30">Same as parent</span>
+                  </label>
                 </div>
               ))}
               <button onClick={() => addFollowUp(list, setList, i)}
                 className="text-xs text-foreground/30 hover:text-foreground/60 ml-6">+ Add follow-up</button>
             </div>
           ))}
-          <button onClick={() => setList([...list, { text: "", followUps: [] }])}
+          <button onClick={() => setList([...list, { text: "", timeLimit: 0, followUps: [] }])}
             className="text-sm text-foreground/40 hover:text-foreground/70">+ Add question</button>
         </div>
       </div>
@@ -204,14 +259,27 @@ export default function AssessmentDetailPage() {
       <div className={sectionClass}>
         <h3 className="font-semibold mb-2">{label}</h3>
         <p className="text-foreground/50 mb-2">{total} total questions</p>
-        {config.questions.map((q, i) => (
-          <div key={i} className="mb-1">
-            <p className="text-foreground/60 ml-2">{i + 1}. {q.text}</p>
-            {q.followUps?.map((f, fi) => (
-              <p key={fi} className="text-foreground/40 ml-8">↳ {f}</p>
-            ))}
-          </div>
-        ))}
+        {config.questions.map((q, i) => {
+          const qAny = q as QuestionItem & { timeLimit?: number };
+          return (
+            <div key={i} className="mb-1">
+              <p className="text-foreground/60 ml-2">
+                {i + 1}. {q.text}
+                {qAny.timeLimit ? <span className="text-foreground/30 ml-2">({qAny.timeLimit}s)</span> : null}
+              </p>
+              {q.followUps?.map((f, fi) => {
+                const fText = typeof f === "string" ? f : (f as { text: string; timeLimit?: number }).text;
+                const fTime = typeof f === "string" ? 0 : (f as { timeLimit?: number }).timeLimit || 0;
+                return (
+                  <p key={fi} className="text-foreground/40 ml-8">
+                    ↳ {fText}
+                    {fTime ? <span className="text-foreground/30 ml-2">({fTime}s)</span> : null}
+                  </p>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
     );
   }
