@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionState } from "@/lib/redis";
 import { checkForNudge } from "@/lib/nudge";
 import { textToSpeech } from "@/lib/tts";
+import { requireSessionOwner } from "@/lib/session-auth";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { sessionId } = await params;
+
+  const denied = await requireSessionOwner(sessionId);
+  if (denied) return denied;
+
   const state = await getSessionState(sessionId);
 
   if (!state || state.phase !== "lab") {

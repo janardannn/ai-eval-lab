@@ -7,6 +7,7 @@ import os
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://web:8080")
 SESSION_ID = os.environ.get("SESSION_ID", "unknown")
 POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "3"))
+INTERNAL_API_SECRET = os.environ.get("INTERNAL_API_SECRET", "")
 
 
 def snapshot(board):
@@ -70,6 +71,7 @@ def poll_loop():
                 requests.post(
                     f"{BACKEND_URL}/api/poller/{SESSION_ID}/events",
                     json={"timestamp": time.time(), "snapshot": current},
+                    headers={"x-internal-secret": INTERNAL_API_SECRET},
                     timeout=5,
                 )
                 prev_hash = current_hash

@@ -8,12 +8,17 @@ import {
   popFromQueue,
 } from "@/lib/redis";
 import { stopContainer, extractFile } from "@/lib/docker";
+import { requireSessionOwner } from "@/lib/session-auth";
 
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  const denied = await requireSessionOwner(id);
+  if (denied) return denied;
+
   const state = await getSessionState(id);
 
   if (!state) {
@@ -53,6 +58,7 @@ export async function POST(
   // Trigger grading async
   fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/grader/${id}`, {
     method: "POST",
+    headers: { "x-internal-secret": process.env.INTERNAL_API_SECRET || "" },
   }).catch((err) => console.error("failed to trigger grader:", err));
 
   // Free capacity for next queued session
@@ -60,7 +66,10 @@ export async function POST(
   if (nextSessionId) {
     fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/session/start`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": process.env.INTERNAL_API_SECRET || "",
+      },
       body: JSON.stringify({ _provisionQueued: nextSessionId }),
     }).catch(() => {});
   }
