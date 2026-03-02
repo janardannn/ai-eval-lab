@@ -18,7 +18,8 @@ interface PhaseConfig {
   questions: (string | Question)[];
 }
 
-function collectTexts(config: PhaseConfig): string[] {
+function collectTexts(config: PhaseConfig | null | undefined): string[] {
+  if (!config?.questions) return [];
   const texts: string[] = [];
   for (const q of config.questions) {
     if (typeof q === "string") {
@@ -58,67 +59,80 @@ export async function POST(
 
   const { id } = await params;
 
-  const assessment = await prisma.assessment.findUnique({
-    where: { id },
-    select: { introConfig: true, domainConfig: true },
-  });
-
-  if (!assessment) {
-    return NextResponse.json({ error: "not found" }, { status: 404 });
-  }
-
-  const introTexts = collectTexts(assessment.introConfig as unknown as PhaseConfig);
-  const domainTexts = collectTexts(assessment.domainConfig as unknown as PhaseConfig);
-  const allTexts = dedup([...introTexts, ...domainTexts]);
-  const currentHashes = new Set(allTexts.map((t) => questionTextHash(t)));
-
-  const existing = await prisma.questionAudio.findMany({
-    where: { assessmentId: id },
-    select: { id: true, textHash: true },
-  });
-
-  const existingHashSet = new Set(existing.map((e) => e.textHash));
-
-  // Delete stale audio (questions removed or text changed)
-  const staleIds = existing
-    .filter((e) => !currentHashes.has(e.textHash))
-    .map((e) => e.id);
-
-  if (staleIds.length > 0) {
-    await prisma.questionAudio.deleteMany({
-      where: { id: { in: staleIds } },
+  try {
+    const assessment = await prisma.assessment.findUnique({
+      where: { id },
+      select: { introConfig: true, domainConfig: true },
     });
-  }
 
-  // Generate TTS for missing questions (new, modified, or never generated)
-  let generated = 0;
-  let failed = 0;
-  for (const text of allTexts) {
-    const hash = questionTextHash(text);
-    if (existingHashSet.has(hash)) continue;
-
-    try {
-      const audioBuffer = await textToSpeech(text);
-      await prisma.questionAudio.create({
-        data: {
-          assessmentId: id,
-          textHash: hash,
-          questionText: text,
-          audio: new Uint8Array(audioBuffer),
-        },
-      });
-      generated++;
-    } catch (err) {
-      console.error(`[TTS] Failed for: "${text.substring(0, 60)}..."`, err);
-      failed++;
+    if (!assessment) {
+      return NextResponse.json({ error: "not found" }, { status: 404 });
     }
-  }
 
-  return NextResponse.json({
-    total: allTexts.length,
-    generated,
-    cached: allTexts.length - generated - failed,
-    deleted: staleIds.length,
-    failed,
-  });
+    const introTexts = collectTexts(assessment.introConfig as unknown as PhaseConfig | null);
+    const domainTexts = collectTexts(assessment.domainConfig as unknown as PhaseConfig | null);
+    const allTexts = dedup([...introTexts, ...domainTexts]);
+
+    if (allTexts.length === 0) {
+      return NextResponse.json({ total: 0, generated: 0, cached: 0, deleted: 0, failed: 0 });
+    }
+
+    const currentHashes = new Set(allTexts.map((t) => questionTextHash(t)));
+
+    const existing = await prisma.questionAudio.findMany({
+      where: { assessmentId: id },
+      select: { id: true, textHash: true },
+    });
+
+    const existingHashSet = new Set(existing.map((e) => e.textHash));
+
+    // Delete stale audio (questions removed or text changed)
+    const staleIds = existing
+      .filter((e) => !currentHashes.has(e.textHash))
+      .map((e) => e.id);
+
+    if (staleIds.length > 0) {
+      await prisma.questionAudio.deleteMany({
+        where: { id: { in: staleIds } },
+      });
+    }
+
+    // Generate TTS for missing questions (new, modified, or never generated)
+    let generated = 0;
+    let failed = 0;
+    for (const text of allTexts) {
+      const hash = questionTextHash(text);
+      if (existingHashSet.has(hash)) continue;
+
+      try {
+        const audioBuffer = await textToSpeech(text);
+        await prisma.questionAudio.create({
+          data: {
+            assessmentId: id,
+            textHash: hash,
+            questionText: text,
+            audio: new Uint8Array(audioBuffer),
+          },
+        });
+        generated++;
+      } catch (err) {
+        console.error(`[TTS] Failed for: "${text.substring(0, 60)}..."`, err);
+        failed++;
+      }
+    }
+
+    return NextResponse.json({
+      total: allTexts.length,
+      generated,
+      cached: allTexts.length - generated - failed,
+      deleted: staleIds.length,
+      failed,
+    });
+  } catch (err) {
+    console.error("[generate-tts] Unexpected error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
