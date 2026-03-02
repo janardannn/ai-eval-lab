@@ -144,10 +144,43 @@ export default function SessionPage() {
         <div className="w-[30%] p-6 ring-1 ring-border bg-card/50 flex flex-col">
           <div className="flex-1 flex flex-col items-center justify-center">
             <WebcamPreview stream={cameraStream} />
-            <div className="w-full mt-6">
+            <div className="w-full mt-6 space-y-3">
               <MicControls recorder={recorder} />
+              <button
+                onClick={() => setShowEndConfirm(true)}
+                className="w-full h-10 text-sm font-medium rounded-lg ring-1 ring-destructive/30 text-destructive hover:bg-destructive/10 transition-all duration-75 active:scale-[0.98]"
+              >
+                End Exam
+              </button>
             </div>
           </div>
+          {showEndConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+              <div className="bg-card ring-1 ring-border rounded-lg p-6 max-w-sm mx-4 shadow-2xl">
+                <h3 className="text-lg font-semibold mb-2">End Exam?</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  This will end your exam immediately. Your progress so far will be graded. This cannot be undone.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setShowEndConfirm(false)}
+                    className="h-9 px-4 text-sm font-medium rounded-md ring-1 ring-border hover:bg-muted transition-all duration-75 active:scale-[0.98]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowEndConfirm(false);
+                      handleEndExam();
+                    }}
+                    className="h-9 px-4 text-sm font-medium rounded-md bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98]"
+                  >
+                    End Exam
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <div className="w-[70%] p-6 flex items-center">
           <div className="max-w-xl mx-auto w-full">
@@ -156,7 +189,6 @@ export default function SessionPage() {
               sessionId={sessionId}
               phase={session.phase as "intro" | "domain"}
               onPhaseComplete={fetchStatus}
-              onEndExam={handleEndExam}
               recorder={recorder}
             />
           </div>

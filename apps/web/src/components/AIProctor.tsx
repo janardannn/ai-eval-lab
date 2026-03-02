@@ -7,7 +7,6 @@ interface AIProctorProps {
   sessionId: string;
   phase: "intro" | "domain" | "lab";
   onPhaseComplete: () => void | Promise<void>;
-  onEndExam?: () => void;
   recorder?: AudioRecorderState;
 }
 
@@ -43,11 +42,10 @@ function playAudioDelayed(base64Wav: string) {
   });
 }
 
-export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam, recorder }: AIProctorProps) {
+export function AIProctor({ sessionId, phase, onPhaseComplete, recorder }: AIProctorProps) {
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [questionTimeLeft, setQuestionTimeLeft] = useState(0);
   const [readingTimeLeft, setReadingTimeLeft] = useState(0);
   const questionTimeLimitRef = useRef(0);
@@ -178,7 +176,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam, record
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questionTimeLeft]);
 
-  async function handleSubmitAudio() {
+  async function handleSubmitVoice() {
     if (!currentQuestion || busyRef.current || !recorder) return;
     busyRef.current = true;
     stopAudio();
@@ -186,6 +184,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam, record
     if (!blob) { busyRef.current = false; return; }
 
     setIsLoading(true);
+    setTranscript("");
     try {
       const res = await fetch(`/api/ai/${sessionId}/answer`, {
         method: "POST",
@@ -215,7 +214,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam, record
     }
   }, [recorder?.isRecording, recorder?.liveTranscript]);
 
-  const handleExternalAudioSubmit = recorder ? handleSubmitAudio : undefined;
+  const handleExternalAudioSubmit = recorder ? handleSubmitVoice : undefined;
 
   return (
     <div className="flex flex-col h-full">
@@ -231,43 +230,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam, record
             <p className="text-xs text-muted-foreground">AI Proctor</p>
           </div>
         </div>
-        {onEndExam && (
-          <button
-            onClick={() => setShowEndConfirm(true)}
-            className="h-8 px-3 text-xs font-medium rounded-md ring-1 ring-destructive/30 text-destructive hover:bg-destructive/10 transition-all duration-75 active:scale-[0.98]"
-          >
-            End Exam
-          </button>
-        )}
       </div>
-
-      {showEndConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-card ring-1 ring-border rounded-lg p-6 max-w-sm mx-4 shadow-2xl">
-            <h3 className="text-lg font-semibold mb-2">End Exam?</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              This will end your exam immediately. Your progress so far will be graded. This cannot be undone.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowEndConfirm(false)}
-                className="h-9 px-4 text-sm font-medium rounded-md ring-1 ring-border hover:bg-muted transition-all duration-75 active:scale-[0.98]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setShowEndConfirm(false);
-                  onEndExam?.();
-                }}
-                className="h-9 px-4 text-sm font-medium rounded-md bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98]"
-              >
-                End Exam
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {currentQuestion && (
         <div className="flex-1 flex flex-col justify-center mb-4">
@@ -331,7 +294,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam, record
               ) : (
                 <>
                   <button
-                    onClick={async () => { await recorder.stopRecording(); setTranscript(""); recorder.startRecording(); }}
+                    onClick={() => { setTranscript(""); recorder.resetRecording(); }}
                     className="h-9 px-4 text-sm font-medium rounded-md ring-1 ring-border hover:bg-muted transition-all duration-75 active:scale-[0.98] flex items-center gap-1.5"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -341,9 +304,12 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam, record
                   </button>
                   <button
                     onClick={handleExternalAudioSubmit}
-                    className="h-9 px-4 text-sm font-medium rounded-md bg-accent text-accent-foreground hover:bg-accent-hover shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-150 active:scale-[0.98] flex items-center gap-1.5"
+                    className="h-9 px-4 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 transition-all duration-75 active:scale-[0.98] flex items-center gap-1.5"
                   >
-                    Send
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
+                    Stop & Send
                   </button>
                 </>
               )}

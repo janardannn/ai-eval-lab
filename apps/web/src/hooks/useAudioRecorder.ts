@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 export interface AudioRecorderState {
   isRecording: boolean;
@@ -8,6 +8,7 @@ export interface AudioRecorderState {
   liveTranscript: string;
   startRecording: () => Promise<void>;
   stopRecording: () => Promise<Blob | undefined>;
+  resetRecording: () => Promise<void>;
   isRecordingRef: React.RefObject<boolean>;
   mediaRecorderRef: React.RefObject<MediaRecorder | null>;
   chunksRef: React.RefObject<Blob[]>;
@@ -95,6 +96,25 @@ export function useAudioRecorder(): AudioRecorderState {
     }
   }, []);
 
+  const resetRecording = useCallback(async () => {
+    // Kill current recorder + STT without flipping isRecording state
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state === "recording") {
+      rec.onstop = () => { rec.stream.getTracks().forEach((t) => t.stop()); };
+      rec.stop();
+    }
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
+      recognitionRef.current = null;
+    }
+    setAnalyser(null);
+    mediaRecorderRef.current = null;
+    chunksRef.current = [];
+
+    // Start fresh
+    await startRecording();
+  }, [startRecording]);
+
   const stopRecording = useCallback(async (): Promise<Blob | undefined> => {
     const recorder = mediaRecorderRef.current;
     if (!recorder || recorder.state !== "recording") return;
@@ -119,12 +139,30 @@ export function useAudioRecorder(): AudioRecorderState {
     });
   }, []);
 
+  // Clean up mic + STT on unmount
+  useEffect(() => {
+    return () => {
+      const rec = mediaRecorderRef.current;
+      if (rec && rec.state === "recording") {
+        rec.stream.getTracks().forEach((t) => t.stop());
+        rec.stop();
+      }
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+      }
+      if (audioCtxRef.current) {
+        try { audioCtxRef.current.close(); } catch {}
+      }
+    };
+  }, []);
+
   return {
     isRecording,
     analyser,
     liveTranscript,
     startRecording,
     stopRecording,
+    resetRecording,
     isRecordingRef,
     mediaRecorderRef,
     chunksRef,
