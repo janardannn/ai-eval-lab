@@ -168,16 +168,8 @@ export default function SessionPage() {
 
   return (
     <main className="h-[calc(100vh-4rem)] flex flex-col">
-      <div className="h-12 ring-1 ring-border bg-card flex items-center justify-between px-4 shrink-0">
-        <span className="text-sm font-semibold tracking-tight">Lab Session</span>
+      <div className="h-12 ring-1 ring-border bg-card flex items-center justify-center px-4 shrink-0">
         <Timer seconds={session.timeLimit || 1800} onTimeUp={handleEndExam} />
-        <button
-          onClick={() => setShowEndConfirm(true)}
-          disabled={submitting}
-          className="h-8 px-4 text-sm font-medium rounded-md bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
-        >
-          {submitting ? "Submitting..." : "Submit"}
-        </button>
       </div>
 
       {showEndConfirm && (
@@ -213,6 +205,13 @@ export default function SessionPage() {
           <div className="mb-4">
             <WebcamPreview stream={cameraStream} compact />
           </div>
+          <button
+            onClick={() => setShowEndConfirm(true)}
+            disabled={submitting}
+            className="w-full h-10 mb-4 text-sm font-medium rounded-lg bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {submitting ? "Submitting..." : "Submit & End Exam"}
+          </button>
           {nudge.message && (
             <div className="mb-4 p-3 rounded-md ring-1 ring-yellow-500/20 bg-yellow-500/10">
               <div className="flex items-start justify-between gap-2">
