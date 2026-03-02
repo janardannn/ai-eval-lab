@@ -35,6 +35,20 @@ function collectTexts(config: PhaseConfig): string[] {
   return texts;
 }
 
+/** Deduplicate texts by hash, preserving order */
+function dedup(texts: string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const t of texts) {
+    const h = questionTextHash(t);
+    if (!seen.has(h)) {
+      seen.add(h);
+      unique.push(t);
+    }
+  }
+  return unique;
+}
+
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -55,7 +69,7 @@ export async function POST(
 
   const introTexts = collectTexts(assessment.introConfig as unknown as PhaseConfig);
   const domainTexts = collectTexts(assessment.domainConfig as unknown as PhaseConfig);
-  const allTexts = [...introTexts, ...domainTexts];
+  const allTexts = dedup([...introTexts, ...domainTexts]);
   const currentHashes = new Set(allTexts.map((t) => questionTextHash(t)));
 
   const existing = await prisma.questionAudio.findMany({
@@ -76,30 +90,35 @@ export async function POST(
     });
   }
 
-  // Generate TTS for new/changed questions
+  // Generate TTS for missing questions (new, modified, or never generated)
   let generated = 0;
+  let failed = 0;
   for (const text of allTexts) {
     const hash = questionTextHash(text);
     if (existingHashSet.has(hash)) continue;
 
-    const audioBuffer = await textToSpeech(text);
-
-    await prisma.questionAudio.create({
-      data: {
-        assessmentId: id,
-        textHash: hash,
-        questionText: text,
-        audio: new Uint8Array(audioBuffer),
-      },
-    });
-
-    generated++;
+    try {
+      const audioBuffer = await textToSpeech(text);
+      await prisma.questionAudio.create({
+        data: {
+          assessmentId: id,
+          textHash: hash,
+          questionText: text,
+          audio: new Uint8Array(audioBuffer),
+        },
+      });
+      generated++;
+    } catch (err) {
+      console.error(`[TTS] Failed for: "${text.substring(0, 60)}..."`, err);
+      failed++;
+    }
   }
 
   return NextResponse.json({
     total: allTexts.length,
     generated,
-    cached: allTexts.length - generated,
+    cached: allTexts.length - generated - failed,
     deleted: staleIds.length,
+    failed,
   });
 }

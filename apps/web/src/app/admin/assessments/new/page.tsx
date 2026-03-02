@@ -28,7 +28,7 @@ export default function NewAssessmentPage() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ttsProgress, setTtsProgress] = useState<{ total: number } | null>(null);
+  const [ttsProgress, setTtsProgress] = useState<{ total: number; done?: boolean; generated?: number; failed?: number } | null>(null);
 
   const [general, setGeneral] = useState({
     title: "",
@@ -204,9 +204,14 @@ export default function NewAssessmentPage() {
     setSaving(false);
 
     try {
-      await fetch(`/api/admin/assessments/${created.id}/generate-tts`, {
+      const ttsRes = await fetch(`/api/admin/assessments/${created.id}/generate-tts`, {
         method: "POST",
       });
+      if (ttsRes.ok) {
+        const result = await ttsRes.json();
+        setTtsProgress({ total, done: true, generated: result.generated, failed: result.failed });
+        await new Promise((r) => setTimeout(r, 1500));
+      }
     } catch {
       // TTS generation failed but assessment was created — continue
     }
@@ -294,11 +299,21 @@ export default function NewAssessmentPage() {
       {ttsProgress && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-background ring-1 ring-foreground/10 rounded-lg p-8 max-w-sm text-center space-y-4">
-            <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin mx-auto" />
+            {ttsProgress.done ? (
+              <svg className="w-8 h-8 mx-auto text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin mx-auto" />
+            )}
             <div>
-              <p className="text-sm font-medium">Generating Audio</p>
+              <p className="text-sm font-medium">
+                {ttsProgress.done ? "Audio Generated" : "Generating Audio"}
+              </p>
               <p className="text-xs text-foreground/50 mt-1">
-                {ttsProgress.total} questions to process...
+                {ttsProgress.done
+                  ? `${ttsProgress.generated} generated${ttsProgress.failed ? `, ${ttsProgress.failed} failed` : ""}`
+                  : `${ttsProgress.total} questions to process...`}
               </p>
             </div>
           </div>
