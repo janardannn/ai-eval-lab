@@ -6,8 +6,10 @@ import { Timer } from "@/components/Timer";
 import { AIProctor } from "@/components/AIProctor";
 import { VNCViewer } from "@/components/VNCViewer";
 import { WebcamPreview } from "@/components/WebcamPreview";
+import { AudioVisualizer } from "@/components/AudioVisualizer";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { useNudge } from "@/hooks/useNudge";
+import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 
 interface SessionStatus {
   phase: string;
@@ -16,6 +18,30 @@ interface SessionStatus {
   timeLimit?: number;
   taskDescription?: string;
   hasReferenceMaterial?: boolean;
+}
+
+function MicControls({ recorder, disabled }: { recorder: ReturnType<typeof useAudioRecorder>; disabled?: boolean }) {
+  if (recorder.isRecording) {
+    return (
+      <div className="space-y-3">
+        <AudioVisualizer analyser={recorder.analyser} />
+        <p className="text-xs text-center text-red-400 animate-pulse">Recording...</p>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={recorder.startRecording}
+      disabled={disabled}
+      className="w-full h-11 text-sm font-medium rounded-lg ring-1 ring-border bg-muted hover:bg-muted/80 transition-all duration-75 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+    >
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+      </svg>
+      Record Answer
+    </button>
+  );
 }
 
 export default function SessionPage() {
@@ -27,6 +53,7 @@ export default function SessionPage() {
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const cameraRequested = useRef(false);
+  const recorder = useAudioRecorder();
 
   const stopCamera = useCallback(() => {
     setCameraStream((prev) => {
@@ -65,7 +92,7 @@ export default function SessionPage() {
     } catch {
       setError("Lost connection to server.");
     }
-  }, [sessionId, router]);
+  }, [sessionId, router, stopCamera]);
 
   useEffect(() => {
     fetchStatus();
@@ -109,37 +136,30 @@ export default function SessionPage() {
     );
   }
 
-  if (session.phase === "intro") {
+  if (session.phase === "intro" || session.phase === "domain") {
     return (
       <main className="min-h-[calc(100vh-4rem)] flex">
-        <div className="w-[30%] p-6 ring-1 ring-border bg-card/50 flex flex-col items-center pt-12">
-          <WebcamPreview stream={cameraStream} />
-          <p className="text-xs text-muted-foreground/50 mt-3">Camera preview</p>
+        <div className="w-[30%] p-6 ring-1 ring-border bg-card/50 flex flex-col">
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <WebcamPreview stream={cameraStream} />
+            <div className="w-full mt-6">
+              <MicControls recorder={recorder} />
+            </div>
+          </div>
         </div>
         <div className="w-[70%] p-6 flex items-center">
           <div className="max-w-xl mx-auto w-full">
-            <AIProctor key="intro" sessionId={sessionId} phase="intro" onPhaseComplete={fetchStatus} onEndExam={handleEndExam} />
+            <AIProctor
+              key={session.phase}
+              sessionId={sessionId}
+              phase={session.phase as "intro" | "domain"}
+              onPhaseComplete={fetchStatus}
+              onEndExam={handleEndExam}
+              recorder={recorder}
+            />
           </div>
         </div>
-      </main>
-    );
-  }
-
-  if (session.phase === "domain") {
-    return (
-      <main className="min-h-[calc(100vh-4rem)] flex">
-        <div className="w-[30%] p-6 ring-1 ring-border bg-card/50 flex flex-col items-center pt-12">
-          <WebcamPreview stream={cameraStream} />
-          <p className="text-xs text-muted-foreground/50 mt-3">Camera preview</p>
-        </div>
-        <div className="w-[70%] p-6 ring-1 ring-border">
-          <AIProctor key="domain" sessionId={sessionId} phase="domain" onPhaseComplete={fetchStatus} onEndExam={handleEndExam} />
-        </div>
-        {/* TODO: reference materials pane — think of feasibility later
-        <div className={`${session.hasReferenceMaterial ? "w-1/2" : "w-[30%]"} p-6 flex items-center justify-center bg-muted/50 ring-1 ring-border`}>
-          <p className="text-muted-foreground">Reference materials will appear here</p>
-        </div>
-        */}
+        {/* TODO: reference materials pane — think of feasibility later */}
       </main>
     );
   }
