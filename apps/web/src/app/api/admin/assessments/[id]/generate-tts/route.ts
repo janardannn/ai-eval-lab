@@ -36,7 +36,6 @@ function collectTexts(config: PhaseConfig | null | undefined): string[] {
   return texts;
 }
 
-/** Deduplicate texts by hash, preserving order */
 function dedup(texts: string[]): string[] {
   const seen = new Set<string>();
   const unique: string[] = [];
@@ -59,80 +58,105 @@ export async function POST(
 
   const { id } = await params;
 
-  try {
-    const assessment = await prisma.assessment.findUnique({
-      where: { id },
-      select: { introConfig: true, domainConfig: true },
-    });
-
-    if (!assessment) {
-      return NextResponse.json({ error: "not found" }, { status: 404 });
-    }
-
-    const introTexts = collectTexts(assessment.introConfig as unknown as PhaseConfig | null);
-    const domainTexts = collectTexts(assessment.domainConfig as unknown as PhaseConfig | null);
-    const allTexts = dedup([...introTexts, ...domainTexts]);
-
-    if (allTexts.length === 0) {
-      return NextResponse.json({ total: 0, generated: 0, cached: 0, deleted: 0, failed: 0 });
-    }
-
-    const currentHashes = new Set(allTexts.map((t) => questionTextHash(t)));
-
-    const existing = await prisma.questionAudio.findMany({
-      where: { assessmentId: id },
-      select: { id: true, textHash: true },
-    });
-
-    const existingHashSet = new Set(existing.map((e) => e.textHash));
-
-    // Delete stale audio (questions removed or text changed)
-    const staleIds = existing
-      .filter((e) => !currentHashes.has(e.textHash))
-      .map((e) => e.id);
-
-    if (staleIds.length > 0) {
-      await prisma.questionAudio.deleteMany({
-        where: { id: { in: staleIds } },
-      });
-    }
-
-    // Generate TTS for missing questions (new, modified, or never generated)
-    let generated = 0;
-    let failed = 0;
-    for (const text of allTexts) {
-      const hash = questionTextHash(text);
-      if (existingHashSet.has(hash)) continue;
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (data: Record<string, unknown>) => {
+        controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
+      };
 
       try {
-        const audioBuffer = await textToSpeech(text);
-        await prisma.questionAudio.create({
-          data: {
-            assessmentId: id,
-            textHash: hash,
-            questionText: text,
-            audio: new Uint8Array(audioBuffer),
-          },
+        const assessment = await prisma.assessment.findUnique({
+          where: { id },
+          select: { introConfig: true, domainConfig: true },
         });
-        generated++;
-      } catch (err) {
-        console.error(`[TTS] Failed for: "${text.substring(0, 60)}..."`, err);
-        failed++;
-      }
-    }
 
-    return NextResponse.json({
-      total: allTexts.length,
-      generated,
-      cached: allTexts.length - generated - failed,
-      deleted: staleIds.length,
-      failed,
-    });
-  } catch (err) {
-    console.error("[generate-tts] Unexpected error:", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Internal server error" },
-      { status: 500 }
-    );
-  }
+        if (!assessment) {
+          send({ type: "error", error: "Assessment not found" });
+          controller.close();
+          return;
+        }
+
+        const introTexts = collectTexts(assessment.introConfig as unknown as PhaseConfig | null);
+        const domainTexts = collectTexts(assessment.domainConfig as unknown as PhaseConfig | null);
+        const allTexts = dedup([...introTexts, ...domainTexts]);
+
+        if (allTexts.length === 0) {
+          send({ type: "done", total: 0, generated: 0, cached: 0, deleted: 0, failed: 0 });
+          controller.close();
+          return;
+        }
+
+        const currentHashes = new Set(allTexts.map((t) => questionTextHash(t)));
+
+        const existing = await prisma.questionAudio.findMany({
+          where: { assessmentId: id },
+          select: { id: true, textHash: true },
+        });
+
+        const existingHashSet = new Set(existing.map((e) => e.textHash));
+
+        const staleIds = existing
+          .filter((e) => !currentHashes.has(e.textHash))
+          .map((e) => e.id);
+
+        if (staleIds.length > 0) {
+          await prisma.questionAudio.deleteMany({
+            where: { id: { in: staleIds } },
+          });
+        }
+
+        const toGenerate = allTexts.filter((t) => !existingHashSet.has(questionTextHash(t)));
+        const cached = allTexts.length - toGenerate.length;
+
+        send({ type: "start", total: allTexts.length, toGenerate: toGenerate.length, cached });
+
+        let generated = 0;
+        let failed = 0;
+        for (let i = 0; i < toGenerate.length; i++) {
+          const text = toGenerate[i];
+          const hash = questionTextHash(text);
+
+          try {
+            const audioBuffer = await textToSpeech(text);
+            await prisma.questionAudio.create({
+              data: {
+                assessmentId: id,
+                textHash: hash,
+                questionText: text,
+                audio: new Uint8Array(audioBuffer),
+              },
+            });
+            generated++;
+          } catch (err) {
+            console.error(`[TTS] Failed for: "${text.substring(0, 60)}..."`, err);
+            failed++;
+          }
+
+          send({ type: "progress", completed: i + 1, toGenerate: toGenerate.length });
+        }
+
+        send({
+          type: "done",
+          total: allTexts.length,
+          generated,
+          cached,
+          deleted: staleIds.length,
+          failed,
+        });
+      } catch (err) {
+        console.error("[generate-tts] Unexpected error:", err);
+        send({ type: "error", error: err instanceof Error ? err.message : "Internal server error" });
+      }
+
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson",
+      "Transfer-Encoding": "chunked",
+    },
+  });
 }

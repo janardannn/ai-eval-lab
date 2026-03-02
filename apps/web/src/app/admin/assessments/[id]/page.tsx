@@ -56,7 +56,7 @@ export default function AssessmentDetailPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [ttsProgress, setTtsProgress] = useState<{ total: number; done?: boolean; generated?: number; failed?: number; error?: string } | null>(null);
+  const [ttsProgress, setTtsProgress] = useState<{ total: number; completed: number; toGenerate: number; done?: boolean; generated?: number; failed?: number; error?: string } | null>(null);
 
   // Edit form state
   const [title, setTitle] = useState("");
@@ -206,28 +206,46 @@ export default function AssessmentDetailPage() {
       }),
     });
 
-    const countQ = (list: QuestionDraft[]) =>
-      list.filter((q) => q.text.trim()).reduce((s, q) => s + 1 + q.followUps.filter((f) => f.text.trim()).length, 0);
-    const total = countQ(introQuestions) + countQ(domainQuestions);
-    setTtsProgress({ total });
+    setTtsProgress({ total: 0, completed: 0, toGenerate: 0 });
     setSaving(false);
 
     try {
-      const ttsRes = await fetch(`/api/admin/assessments/${id}/generate-tts`, {
-        method: "POST",
-      });
-      if (ttsRes.ok) {
-        const result = await ttsRes.json();
-        setTtsProgress({ total, done: true, generated: result.generated, failed: result.failed });
-        await new Promise((r) => setTimeout(r, 2500));
-        setTtsProgress(null);
-      } else {
+      const ttsRes = await fetch(`/api/admin/assessments/${id}/generate-tts`, { method: "POST" });
+      if (!ttsRes.ok) {
         const err = await ttsRes.json().catch(() => ({ error: `HTTP ${ttsRes.status}` }));
-        setTtsProgress({ total, error: err.error || `Failed (${ttsRes.status})` });
-        return; // keep overlay open until user dismisses
+        setTtsProgress({ total: 0, completed: 0, toGenerate: 0, error: err.error || `Failed (${ttsRes.status})` });
+        return;
       }
+
+      const reader = ttsRes.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+
+      while (true) {
+        const { done: streamDone, value } = await reader.read();
+        if (streamDone) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop()!;
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const msg = JSON.parse(line);
+          if (msg.type === "start") {
+            setTtsProgress({ total: msg.total, completed: 0, toGenerate: msg.toGenerate });
+          } else if (msg.type === "progress") {
+            setTtsProgress((prev) => prev ? { ...prev, completed: msg.completed } : prev);
+          } else if (msg.type === "done") {
+            setTtsProgress({ total: msg.total, completed: msg.toGenerate || 0, toGenerate: msg.toGenerate || 0, done: true, generated: msg.generated, failed: msg.failed });
+          } else if (msg.type === "error") {
+            setTtsProgress((prev) => ({ total: prev?.total || 0, completed: 0, toGenerate: 0, error: msg.error }));
+          }
+        }
+      }
+
+      await new Promise((r) => setTimeout(r, 2500));
+      setTtsProgress(null);
     } catch {
-      setTtsProgress({ total, error: "Failed to connect to TTS service" });
+      setTtsProgress({ total: 0, completed: 0, toGenerate: 0, error: "Failed to connect to TTS service" });
       return;
     }
 
@@ -345,7 +363,7 @@ export default function AssessmentDetailPage() {
     <div className="max-w-3xl">
       {ttsProgress && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-background ring-1 ring-foreground/10 rounded-lg p-8 max-w-sm text-center space-y-4">
+          <div className="bg-background ring-1 ring-foreground/10 rounded-lg p-8 max-w-sm w-full text-center space-y-4">
             {ttsProgress.error ? (
               <svg className="w-8 h-8 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -354,9 +372,7 @@ export default function AssessmentDetailPage() {
               <svg className="w-8 h-8 mx-auto text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
-            ) : (
-              <div className="w-8 h-8 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin mx-auto" />
-            )}
+            ) : null}
             <div>
               <p className="text-sm font-medium">
                 {ttsProgress.error ? "Audio Generation Failed" : ttsProgress.done ? "Audio Generated" : "Generating Audio"}
@@ -366,9 +382,19 @@ export default function AssessmentDetailPage() {
                   ? ttsProgress.error
                   : ttsProgress.done
                     ? `${ttsProgress.generated} generated${ttsProgress.failed ? `, ${ttsProgress.failed} failed` : ""}`
-                    : `${ttsProgress.total} questions to process...`}
+                    : ttsProgress.toGenerate > 0
+                      ? `${ttsProgress.completed} / ${ttsProgress.toGenerate}`
+                      : "Checking existing audio..."}
               </p>
             </div>
+            {!ttsProgress.error && !ttsProgress.done && (
+              <div className="w-full bg-foreground/10 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full bg-foreground rounded-full transition-all duration-500 ease-out"
+                  style={{ width: ttsProgress.toGenerate > 0 ? `${Math.round((ttsProgress.completed / ttsProgress.toGenerate) * 100)}%` : "0%" }}
+                />
+              </div>
+            )}
             {ttsProgress.error && (
               <button
                 onClick={() => setTtsProgress(null)}
