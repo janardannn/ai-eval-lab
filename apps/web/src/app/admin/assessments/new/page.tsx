@@ -28,7 +28,7 @@ export default function NewAssessmentPage() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ttsProgress, setTtsProgress] = useState<{ total: number; done?: boolean; generated?: number; failed?: number } | null>(null);
+  const [ttsProgress, setTtsProgress] = useState<{ total: number; done?: boolean; generated?: number; failed?: number; error?: string } | null>(null);
 
   const [general, setGeneral] = useState({
     title: "",
@@ -210,14 +210,16 @@ export default function NewAssessmentPage() {
       if (ttsRes.ok) {
         const result = await ttsRes.json();
         setTtsProgress({ total, done: true, generated: result.generated, failed: result.failed });
-        await new Promise((r) => setTimeout(r, 1500));
+        await new Promise((r) => setTimeout(r, 2500));
+        setTtsProgress(null);
+        router.push("/admin/assessments");
+      } else {
+        const err = await ttsRes.json().catch(() => ({ error: `HTTP ${ttsRes.status}` }));
+        setTtsProgress({ total, error: err.error || `Failed (${ttsRes.status})` });
       }
     } catch {
-      // TTS generation failed but assessment was created — continue
+      setTtsProgress({ total, error: "Failed to connect to TTS service" });
     }
-
-    setTtsProgress(null);
-    router.push("/admin/assessments");
   }
 
   function renderQuestionList(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, label: string) {
@@ -299,7 +301,11 @@ export default function NewAssessmentPage() {
       {ttsProgress && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-background ring-1 ring-foreground/10 rounded-lg p-8 max-w-sm text-center space-y-4">
-            {ttsProgress.done ? (
+            {ttsProgress.error ? (
+              <svg className="w-8 h-8 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : ttsProgress.done ? (
               <svg className="w-8 h-8 mx-auto text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
@@ -308,14 +314,24 @@ export default function NewAssessmentPage() {
             )}
             <div>
               <p className="text-sm font-medium">
-                {ttsProgress.done ? "Audio Generated" : "Generating Audio"}
+                {ttsProgress.error ? "Audio Generation Failed" : ttsProgress.done ? "Audio Generated" : "Generating Audio"}
               </p>
               <p className="text-xs text-foreground/50 mt-1">
-                {ttsProgress.done
-                  ? `${ttsProgress.generated} generated${ttsProgress.failed ? `, ${ttsProgress.failed} failed` : ""}`
-                  : `${ttsProgress.total} questions to process...`}
+                {ttsProgress.error
+                  ? ttsProgress.error
+                  : ttsProgress.done
+                    ? `${ttsProgress.generated} generated${ttsProgress.failed ? `, ${ttsProgress.failed} failed` : ""}`
+                    : `${ttsProgress.total} questions to process...`}
               </p>
             </div>
+            {ttsProgress.error && (
+              <button
+                onClick={() => setTtsProgress(null)}
+                className="px-4 py-1.5 text-xs rounded border border-foreground/15 hover:bg-foreground/5 transition-colors"
+              >
+                Dismiss
+              </button>
+            )}
           </div>
         </div>
       )}
