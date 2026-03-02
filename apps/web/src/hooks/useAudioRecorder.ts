@@ -8,7 +8,7 @@ export interface AudioRecorderState {
   liveTranscript: string;
   startRecording: () => Promise<void>;
   stopRecording: () => Promise<Blob | undefined>;
-  resetRecording: () => Promise<void>;
+  resetRecording: () => void;
   isRecordingRef: React.RefObject<boolean>;
   mediaRecorderRef: React.RefObject<MediaRecorder | null>;
   chunksRef: React.RefObject<Blob[]>;
@@ -27,6 +27,26 @@ function createSpeechRecognition(): SpeechRecognitionInstance | null {
   recognition.interimResults = true;
   recognition.lang = "en-US";
   return recognition;
+}
+
+function killRecorder(
+  mediaRecorderRef: React.RefObject<MediaRecorder | null>,
+  recognitionRef: React.RefObject<SpeechRecognitionInstance>,
+) {
+  const rec = mediaRecorderRef.current;
+  if (rec) {
+    // Stop all mic tracks immediately
+    rec.stream.getTracks().forEach((t) => t.stop());
+    if (rec.state === "recording") {
+      rec.onstop = null;
+      rec.stop();
+    }
+    mediaRecorderRef.current = null;
+  }
+  if (recognitionRef.current) {
+    try { recognitionRef.current.stop(); } catch {}
+    recognitionRef.current = null;
+  }
 }
 
 export function useAudioRecorder(): AudioRecorderState {
@@ -78,7 +98,6 @@ export function useAudioRecorder(): AudioRecorderState {
         };
         recognition.onerror = () => {};
         recognition.onend = () => {
-          // Restart if still recording (browser stops after silence)
           if (isRecordingRef.current) {
             try { recognition.start(); } catch {}
           }
@@ -96,23 +115,14 @@ export function useAudioRecorder(): AudioRecorderState {
     }
   }, []);
 
-  const resetRecording = useCallback(async () => {
-    // Kill current recorder + STT without flipping isRecording state
-    const rec = mediaRecorderRef.current;
-    if (rec && rec.state === "recording") {
-      rec.onstop = () => { rec.stream.getTracks().forEach((t) => t.stop()); };
-      rec.stop();
-    }
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch {}
-      recognitionRef.current = null;
-    }
+  const resetRecording = useCallback(() => {
+    killRecorder(mediaRecorderRef, recognitionRef);
     setAnalyser(null);
-    mediaRecorderRef.current = null;
+    setLiveTranscript("");
     chunksRef.current = [];
-
-    // Start fresh
-    await startRecording();
+    // Keep isRecording true so UI stays in recording mode
+    // startRecording will be called after a tick to avoid race conditions
+    setTimeout(() => { startRecording(); }, 50);
   }, [startRecording]);
 
   const stopRecording = useCallback(async (): Promise<Blob | undefined> => {
@@ -121,7 +131,6 @@ export function useAudioRecorder(): AudioRecorderState {
 
     setAnalyser(null);
 
-    // Stop live STT
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch {}
       recognitionRef.current = null;
@@ -139,17 +148,11 @@ export function useAudioRecorder(): AudioRecorderState {
     });
   }, []);
 
-  // Clean up mic + STT on unmount
+  // Clean up on unmount
   useEffect(() => {
     return () => {
-      const rec = mediaRecorderRef.current;
-      if (rec && rec.state === "recording") {
-        rec.stream.getTracks().forEach((t) => t.stop());
-        rec.stop();
-      }
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch {}
-      }
+      killRecorder(mediaRecorderRef, recognitionRef);
+      isRecordingRef.current = false;
       if (audioCtxRef.current) {
         try { audioCtxRef.current.close(); } catch {}
       }

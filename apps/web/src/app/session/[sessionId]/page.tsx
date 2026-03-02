@@ -148,7 +148,7 @@ export default function SessionPage() {
               <MicControls recorder={recorder} />
               <button
                 onClick={() => setShowEndConfirm(true)}
-                className="w-full h-10 text-sm font-medium rounded-lg ring-1 ring-destructive/30 text-destructive hover:bg-destructive/10 transition-all duration-75 active:scale-[0.98]"
+                className="w-full h-10 text-sm font-medium rounded-lg bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98]"
               >
                 End Exam
               </button>
