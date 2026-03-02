@@ -14,28 +14,9 @@ interface AssessmentRow {
   avgScore: number;
 }
 
-const LABS = [
-  { slug: "kicad", name: "KiCad" },
-  { slug: "freecad", name: "FreeCAD" },
-  { slug: "blender", name: "Blender" },
-];
-
-const DIFFICULTY_ORDER = ["easy", "medium", "hard"] as const;
-const DIFFICULTY_LABELS: Record<string, string> = {
-  easy: "Easy",
-  medium: "Medium",
-  hard: "Hard",
-};
-const DIFFICULTY_COLORS: Record<string, string> = {
-  easy: "text-green-500 bg-green-500/10",
-  medium: "text-yellow-500 bg-yellow-500/10",
-  hard: "text-red-500 bg-red-500/10",
-};
-
 export default function AdminAssessmentsPage() {
   const [assessments, setAssessments] = useState<AssessmentRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedLab, setSelectedLab] = useState("kicad");
 
   useEffect(() => {
     fetch("/api/admin/assessments")
@@ -55,9 +36,6 @@ export default function AdminAssessmentsPage() {
     );
   }
 
-  const filtered = assessments.filter((a) => a.environment === selectedLab);
-  const grouped = Object.groupBy(filtered, (a) => a.difficulty);
-
   if (loading) {
     return <div className="text-foreground/40">Loading...</div>;
   }
@@ -74,108 +52,57 @@ export default function AdminAssessmentsPage() {
         </Link>
       </div>
 
-      {/* Lab selector */}
-      <div className="flex gap-2 mb-8">
-        {LABS.map((lab) => {
-          const count = assessments.filter((a) => a.environment === lab.slug).length;
-          return (
-            <button
-              key={lab.slug}
-              onClick={() => setSelectedLab(lab.slug)}
-              className={`px-4 py-2 text-sm rounded border transition-colors ${
-                selectedLab === lab.slug
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-foreground/10 text-foreground/60 hover:text-foreground hover:border-foreground/30"
-              }`}
-            >
-              {lab.name}
-              {count > 0 && (
-                <span className={`ml-2 ${selectedLab === lab.slug ? "text-background/60" : "text-foreground/30"}`}>
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Grouped by difficulty */}
-      <div className="space-y-8">
-        {DIFFICULTY_ORDER.map((level) => {
-          const items = grouped[level];
-          return (
-            <section key={level}>
-              <div className="flex items-center gap-3 mb-4">
-                <span className={`text-sm font-semibold px-3 py-1 rounded-full ${DIFFICULTY_COLORS[level]}`}>
-                  {DIFFICULTY_LABELS[level]}
-                </span>
-                {items && (
-                  <span className="text-sm text-foreground/40">
-                    {items.length} assessment{items.length !== 1 ? "s" : ""}
+      <div className="border border-foreground/10 rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-foreground/10 bg-foreground/5">
+              <th className="text-left p-3 font-medium">Title</th>
+              <th className="text-left p-3 font-medium">Difficulty</th>
+              <th className="text-left p-3 font-medium">Env</th>
+              <th className="text-right p-3 font-medium">Time</th>
+              <th className="text-right p-3 font-medium">Attempts</th>
+              <th className="text-right p-3 font-medium">Avg Score</th>
+              <th className="text-center p-3 font-medium">Status</th>
+              <th className="text-right p-3 font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {assessments.map((a) => (
+              <tr key={a.id} className="border-b border-foreground/5 hover:bg-foreground/[0.02]">
+                <td className="p-3">
+                  <Link href={`/admin/assessments/${a.id}`} className="hover:underline">
+                    {a.title}
+                  </Link>
+                </td>
+                <td className="p-3 capitalize">{a.difficulty}</td>
+                <td className="p-3">{a.environment}</td>
+                <td className="p-3 text-right">{Math.round(a.timeLimit / 60)}m</td>
+                <td className="p-3 text-right">{a.attempts}</td>
+                <td className="p-3 text-right">{a.avgScore || "—"}</td>
+                <td className="p-3 text-center">
+                  <span className={`text-xs px-2 py-0.5 rounded ${a.isActive ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
+                    {a.isActive ? "Active" : "Inactive"}
                   </span>
-                )}
-              </div>
-
-              {items && items.length > 0 ? (
-                <div className="border border-foreground/10 rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-foreground/10 bg-foreground/5">
-                        <th className="text-left p-3 font-medium">Title</th>
-                        <th className="text-right p-3 font-medium">Time</th>
-                        <th className="text-right p-3 font-medium">Attempts</th>
-                        <th className="text-right p-3 font-medium">Avg Score</th>
-                        <th className="text-center p-3 font-medium">Status</th>
-                        <th className="text-right p-3 font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((a) => (
-                        <tr key={a.id} className="border-b border-foreground/5 hover:bg-foreground/[0.02]">
-                          <td className="p-3">
-                            <Link href={`/admin/assessments/${a.id}`} className="hover:underline">
-                              {a.title}
-                            </Link>
-                          </td>
-                          <td className="p-3 text-right">{Math.round(a.timeLimit / 60)}m</td>
-                          <td className="p-3 text-right">{a.attempts}</td>
-                          <td className="p-3 text-right">{a.avgScore || "—"}</td>
-                          <td className="p-3 text-center">
-                            <span className={`text-xs px-2 py-0.5 rounded ${a.isActive ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
-                              {a.isActive ? "Active" : "Inactive"}
-                            </span>
-                          </td>
-                          <td className="p-3 text-right space-x-2">
-                            <Link href={`/admin/assessments/${a.id}/stats`} className="text-xs text-foreground/40 hover:text-foreground/70">
-                              stats
-                            </Link>
-                            <button
-                              onClick={() => toggleActive(a.id, a.isActive)}
-                              className="text-xs text-foreground/40 hover:text-foreground/70"
-                            >
-                              {a.isActive ? "deactivate" : "activate"}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-sm text-foreground/30 py-2">
-                  No {DIFFICULTY_LABELS[level].toLowerCase()} assessments
-                </p>
-              )}
-            </section>
-          );
-        })}
+                </td>
+                <td className="p-3 text-right space-x-2">
+                  <Link href={`/admin/assessments/${a.id}/stats`} className="text-xs text-foreground/40 hover:text-foreground/70">
+                    stats
+                  </Link>
+                  <button
+                    onClick={() => toggleActive(a.id, a.isActive)}
+                    className="text-xs text-foreground/40 hover:text-foreground/70"
+                  >
+                    {a.isActive ? "deactivate" : "activate"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {assessments.length === 0 && (
+          <p className="p-6 text-center text-foreground/40">No assessments yet.</p>
+        )}
       </div>
-
-      {filtered.length === 0 && (
-        <p className="text-center text-foreground/40 py-12">
-          No assessments for {LABS.find((l) => l.slug === selectedLab)?.name || selectedLab} yet.
-        </p>
-      )}
     </div>
   );
 }
