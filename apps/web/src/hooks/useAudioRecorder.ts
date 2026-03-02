@@ -53,7 +53,8 @@ export function useAudioRecorder(): AudioRecorderState {
       audioCtxRef.current = ctx;
       const source = ctx.createMediaStreamSource(stream);
       const node = ctx.createAnalyser();
-      node.fftSize = 64;
+      node.fftSize = 128;
+      node.smoothingTimeConstant = 0.8;
       source.connect(node);
       setAnalyser(node);
 

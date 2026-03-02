@@ -17,8 +17,9 @@ export function AudioVisualizer({ analyser }: AudioVisualizerProps) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    const barCount = 40;
+    const prevHeights = new Float32Array(barCount).fill(0);
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
     function draw() {
       rafRef.current = requestAnimationFrame(draw);
@@ -26,23 +27,34 @@ export function AudioVisualizer({ analyser }: AudioVisualizerProps) {
 
       const w = canvas!.width;
       const h = canvas!.height;
+      const centerY = h / 2;
       ctx!.clearRect(0, 0, w, h);
 
-      const barCount = Math.min(bufferLength, 24);
-      const gap = 3;
+      const gap = 2.5;
       const barWidth = (w - gap * (barCount - 1)) / barCount;
 
       for (let i = 0; i < barCount; i++) {
-        const value = dataArray[i] / 255;
-        const barHeight = Math.max(3, value * h);
+        // Map bar index to frequency bin — weight toward lower frequencies
+        const binIndex = Math.floor((i / barCount) * (dataArray.length * 0.7));
+        const raw = dataArray[binIndex] / 255;
+
+        // Smooth with previous frame for fluid motion
+        const target = Math.max(0.04, raw);
+        prevHeights[i] += (target - prevHeights[i]) * 0.3;
+        const value = prevHeights[i];
+
+        const barHeight = Math.max(2, value * (h * 0.85));
+        const halfBar = barHeight / 2;
 
         const x = i * (barWidth + gap);
-        const y = (h - barHeight) / 2;
 
-        // Accent blue with opacity based on intensity
-        ctx!.fillStyle = `rgba(59, 130, 246, ${0.3 + value * 0.7})`;
+        // Gradient intensity based on value
+        const alpha = 0.35 + value * 0.65;
+        ctx!.fillStyle = `rgba(99, 153, 255, ${alpha})`;
+
+        // Draw mirrored from center
         ctx!.beginPath();
-        ctx!.roundRect(x, y, barWidth, barHeight, 2);
+        ctx!.roundRect(x, centerY - halfBar, barWidth, barHeight, barWidth / 2);
         ctx!.fill();
       }
     }
@@ -56,9 +68,9 @@ export function AudioVisualizer({ analyser }: AudioVisualizerProps) {
   return (
     <canvas
       ref={canvasRef}
-      width={240}
-      height={48}
-      className="w-full h-12"
+      width={400}
+      height={64}
+      className="w-full h-16"
     />
   );
 }
