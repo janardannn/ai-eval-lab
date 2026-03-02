@@ -320,42 +320,62 @@ export default function AssessmentDetailPage() {
     );
   }
 
-  function renderQuestionReadonly(config: PhaseConfig | undefined | null, label: string) {
-    if (!config?.questions) {
+  function renderReadonlyQuestions(config: PhaseConfig | undefined | null, label: string) {
+    const dotColor = label.toLowerCase().includes("intro") ? "bg-blue-500" : "bg-amber-500";
+    if (!config?.questions?.length) {
       return (
-        <div className={sectionClass}>
-          <h3 className="font-semibold mb-2">{label}</h3>
-          <p className="text-foreground/40">No questions configured</p>
-        </div>
+        <section>
+          <h2 className="text-base font-bold mb-4 flex items-center gap-2">
+            <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+            {label}
+          </h2>
+          <p className="text-foreground/30">No questions configured</p>
+        </section>
       );
     }
     const total = config.questions.reduce((s, q) => s + 1 + (q.followUps?.length ?? 0), 0);
     return (
-      <div className={sectionClass}>
-        <h3 className="font-semibold mb-2">{label}</h3>
-        <p className="text-foreground/50 mb-2">{total} total questions</p>
-        {config.questions.map((q, i) => {
-          const qAny = q as QuestionItem & { timeLimit?: number };
-          return (
-            <div key={i} className="mb-1">
-              <p className="text-foreground/60 ml-2">
-                {i + 1}. {q.text}
-                {qAny.timeLimit ? <span className="text-foreground/30 ml-2">({Math.round(qAny.timeLimit / 60)}m)</span> : null}
-              </p>
-              {q.followUps?.map((f, fi) => {
-                const fText = typeof f === "string" ? f : (f as { text: string; timeLimit?: number }).text;
-                const fTime = typeof f === "string" ? 0 : (f as { timeLimit?: number }).timeLimit || 0;
-                return (
-                  <p key={fi} className="text-foreground/40 ml-8">
-                    ↳ {fText}
-                    {fTime ? <span className="text-foreground/30 ml-2">({Math.round(fTime / 60)}m)</span> : null}
-                  </p>
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
+      <section>
+        <h2 className="text-base font-bold mb-4 flex items-center gap-2">
+          <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+          {label}
+          <span className="text-xs font-normal text-foreground/30">{total} items</span>
+        </h2>
+        <div className="space-y-2">
+          {config.questions.map((q, i) => {
+            const qAny = q as QuestionItem & { timeLimit?: number };
+            return (
+              <div key={i} className="rounded-lg border border-foreground/10 p-3">
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-mono text-foreground/30 mt-0.5 w-4 shrink-0 text-right">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-foreground/70">{q.text}</p>
+                      {qAny.timeLimit ? (
+                        <span className="text-xs font-mono text-foreground/30 shrink-0 mt-0.5">{Math.round(qAny.timeLimit / 60)}m</span>
+                      ) : null}
+                    </div>
+                    {q.followUps && q.followUps.length > 0 && (
+                      <div className="mt-2 ml-1 space-y-1.5 border-l-2 border-foreground/5 pl-3">
+                        {q.followUps.map((f, fi) => {
+                          const fText = typeof f === "string" ? f : (f as { text: string; timeLimit?: number }).text;
+                          const fTime = typeof f === "string" ? 0 : (f as { timeLimit?: number }).timeLimit || 0;
+                          return (
+                            <div key={fi} className="flex items-start justify-between gap-2">
+                              <p className="text-foreground/45 text-xs">{fText}</p>
+                              {fTime ? <span className="text-[10px] font-mono text-foreground/25 shrink-0">{Math.round(fTime / 60)}m</span> : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
     );
   }
 
@@ -422,7 +442,6 @@ export default function AssessmentDetailPage() {
 
       {editing ? (
         <div className="space-y-6">
-          {/* General */}
           <div className={sectionClass}>
             <h3 className="font-semibold mb-3">General</h3>
             <div className="space-y-3">
@@ -541,57 +560,101 @@ export default function AssessmentDetailPage() {
           </div>
         </div>
       ) : (
-        <div className="space-y-6 text-sm">
-          <div className="flex gap-3">
-            <span className={`px-2 py-0.5 rounded text-xs ${data.isActive ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
+        <div className="space-y-8 text-sm">
+          {/* Meta bar */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${data.isActive ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"}`}>
               {data.isActive ? "Active" : "Inactive"}
             </span>
-            <span className="text-foreground/50 capitalize">{data.difficulty}</span>
-            <span className="text-foreground/50">{data.environment}</span>
-            <span className="text-foreground/50">{Math.round(data.timeLimit / 60)} min (lab)</span>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${
+              data.difficulty === "easy" ? "bg-green-500/10 text-green-500"
+                : data.difficulty === "medium" ? "bg-yellow-500/10 text-yellow-500"
+                : "bg-red-500/10 text-red-500"
+            }`}>{data.difficulty}</span>
+            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 uppercase">{data.environment}</span>
+            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400">{Math.round(data.timeLimit / 60)} min lab</span>
           </div>
-          <p className="text-foreground/70 leading-relaxed">{data.description}</p>
 
-          {renderQuestionReadonly(data.introConfig, "Intro Config")}
-          {renderQuestionReadonly(data.domainConfig, "Domain Config")}
+          {data.description && (
+            <p className="text-foreground/60 leading-relaxed">{data.description}</p>
+          )}
 
-          <div className={sectionClass}>
-            <h3 className="font-semibold mb-2">Lab Config</h3>
+          {/* Intro Questions */}
+          {renderReadonlyQuestions(data.introConfig, "Intro Questions")}
+
+          {/* Domain Questions */}
+          {renderReadonlyQuestions(data.domainConfig, "Domain Questions")}
+
+          {/* Lab Config */}
+          <section>
+            <h2 className="text-base font-bold mb-4 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+              Lab Config
+            </h2>
             {data.labConfig ? (
-              <>
-                <p className="text-foreground/60 mb-3">{data.labConfig.problemStatement}</p>
-                <h4 className="text-xs font-semibold text-foreground/40 uppercase mb-2">Checkpoints</h4>
-                {data.labConfig.rubric?.checkpoints?.map((c, i) => (
-                  <div key={i} className="flex justify-between items-center py-1.5 border-b border-foreground/5 last:border-0">
-                    <div>
-                      <span className="font-medium">{c.name}</span>
-                      <span className="text-foreground/40 ml-2">{c.description}</span>
-                    </div>
-                    <span className="text-foreground/50">{c.weight}%</span>
+              <div className="space-y-4">
+                <div className="rounded-lg border border-foreground/10 p-4">
+                  <h4 className="text-xs font-semibold text-foreground/40 uppercase tracking-wide mb-2">Problem Statement</h4>
+                  <p className="text-foreground/70 leading-relaxed">{data.labConfig.problemStatement}</p>
+                </div>
+                <div className="rounded-lg border border-foreground/10 p-4">
+                  <h4 className="text-xs font-semibold text-foreground/40 uppercase tracking-wide mb-3">
+                    Checkpoints
+                    {data.labConfig.rubric?.strictOrder && (
+                      <span className="ml-2 text-yellow-500/80 normal-case tracking-normal font-normal">strict order</span>
+                    )}
+                  </h4>
+                  <div className="space-y-3">
+                    {data.labConfig.rubric?.checkpoints?.map((c, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <span className="text-xs font-mono text-foreground/30 mt-0.5 w-4 shrink-0 text-right">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="font-medium text-foreground/80">{c.name}</span>
+                            <span className="text-xs font-mono text-foreground/40 shrink-0">{c.weight}%</span>
+                          </div>
+                          <p className="text-foreground/40 text-xs">{c.description}</p>
+                          <div className="mt-1.5 w-full h-1 bg-foreground/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-purple-500/40 rounded-full" style={{ width: `${c.weight}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </>
-            ) : (
-              <p className="text-foreground/40">No lab config</p>
-            )}
-          </div>
-
-          <div className={sectionClass}>
-            <h3 className="font-semibold mb-2">Reference File</h3>
-            {data.referenceFile ? (
-              <div className="flex items-center gap-3">
-                <span className="text-foreground/50">Reference .kicad_pcb uploaded</span>
-                <a href={`/api/admin/assessments/${id}/reference`} className="text-sm text-blue-400 hover:text-blue-300">Download</a>
+                </div>
               </div>
             ) : (
-              <p className="text-foreground/40">No reference file</p>
+              <p className="text-foreground/30">No lab config</p>
             )}
-            <label className="inline-block mt-2 cursor-pointer text-sm text-foreground/50 hover:text-foreground/70">
-              {uploading ? "Uploading..." : "Upload new"}
+          </section>
+
+          {/* Reference File */}
+          <section>
+            <h2 className="text-base font-bold mb-4 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-foreground/30" />
+              Reference File
+            </h2>
+            <div className="rounded-lg border border-foreground/10 p-4 flex items-center justify-between">
+              {data.referenceFile ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-foreground/60">.kicad_pcb uploaded</span>
+                  </div>
+                  <a href={`/api/admin/assessments/${id}/reference`} className="text-xs text-blue-400 hover:text-blue-300">Download</a>
+                </>
+              ) : (
+                <span className="text-foreground/30">No reference file uploaded</span>
+              )}
+            </div>
+            <label className="inline-block mt-2 cursor-pointer text-xs text-foreground/40 hover:text-foreground/60">
+              {uploading ? "Uploading..." : data.referenceFile ? "Replace file" : "Upload .kicad_pcb"}
               <input type="file" accept=".kicad_pcb" className="hidden" disabled={uploading}
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleRefUpload(f); }} />
             </label>
-          </div>
+          </section>
         </div>
       )}
     </div>
