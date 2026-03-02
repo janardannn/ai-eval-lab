@@ -231,10 +231,14 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam, record
     }
   }
 
-  // Expose submit handler for external mic controls
+  // Sync live STT transcript into textarea while recording
+  useEffect(() => {
+    if (recorder?.isRecording && recorder.liveTranscript) {
+      setTranscript(recorder.liveTranscript);
+    }
+  }, [recorder?.isRecording, recorder?.liveTranscript]);
+
   const handleExternalAudioSubmit = recorder ? handleSubmitAudio : undefined;
-  // Make it available on the component instance won't work — use callback prop instead
-  // The session page will call recorder.stopRecording then submit directly
 
   return (
     <div className="flex flex-col h-full">
@@ -336,7 +340,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam, record
               }
             }}
             disabled={isLoading || readingTimeLeft > 0}
-            placeholder={readingTimeLeft > 0 ? "Read the question first..." : "Type your answer or use the mic..."}
+            placeholder={readingTimeLeft > 0 ? "Read the question first..." : recorder?.isRecording ? "Listening..." : "Type your answer or use the mic..."}
             className="w-full p-3 ring-1 ring-border rounded-md bg-muted text-sm resize-none h-24 focus:outline-none focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           />
 

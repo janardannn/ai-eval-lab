@@ -25,7 +25,9 @@ function MicControls({ recorder, disabled }: { recorder: ReturnType<typeof useAu
     return (
       <div className="space-y-3">
         <AudioVisualizer analyser={recorder.analyser} />
-        <p className="text-xs text-center text-red-400 animate-pulse">Recording...</p>
+        <p className="text-xs text-center text-red-400 animate-pulse">
+          {recorder.liveTranscript ? "Listening..." : "Recording..."}
+        </p>
       </div>
     );
   }
