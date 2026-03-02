@@ -40,7 +40,7 @@ export default function RootLayout({
               </Link>
               <nav className="hidden sm:flex items-center gap-6">
                 <Link
-                  href="/lab/kicad"
+                  href="/labs"
                   className="text-[15px] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Assessments

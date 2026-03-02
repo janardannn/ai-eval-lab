@@ -59,7 +59,7 @@ export default function Home() {
 
         <div className="relative max-w-5xl mx-auto text-center">
           <Link
-            href="/lab/kicad"
+            href="/labs"
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-md ring-1 ring-green-500/20 bg-green-500/[0.05] text-sm text-green-400 mb-12 hover:bg-green-500/10 transition-colors"
           >
             <span className="relative flex h-2 w-2">
@@ -85,7 +85,7 @@ export default function Home() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/lab/kicad"
+              href="/labs"
               className="h-12 px-8 inline-flex items-center justify-center text-base font-medium rounded-md bg-accent text-accent-foreground hover:bg-accent-hover shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-150 active:scale-[0.98]"
             >
               Browse Assessments
@@ -169,7 +169,7 @@ export default function Home() {
                   clear objectives.
                 </p>
                 <Link
-                  href="/lab/kicad"
+                  href="/labs"
                   className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
                 >
                   Explore assessments
@@ -406,7 +406,7 @@ export default function Home() {
             AI-generated verdict.
           </p>
           <Link
-            href="/lab/kicad"
+            href="/labs"
             className="h-12 px-8 inline-flex items-center justify-center text-base font-medium rounded-md bg-accent text-accent-foreground hover:bg-accent-hover shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-150 active:scale-[0.98]"
           >
             Get Started
@@ -422,7 +422,7 @@ export default function Home() {
               <h4 className="text-sm font-semibold mb-4">Product</h4>
               <ul className="space-y-2.5 text-sm text-muted-foreground">
                 <li>
-                  <Link href="/lab/kicad" className="hover:text-foreground transition-colors">
+                  <Link href="/labs" className="hover:text-foreground transition-colors">
                     Assessments
                   </Link>
                 </li>
@@ -442,7 +442,7 @@ export default function Home() {
                   </Link>
                 </li>
                 <li><span>FreeCAD</span></li>
-                <li><span>LTspice</span></li>
+                <li><span>Blender</span></li>
               </ul>
             </div>
             <div>

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function StartExamButton({ assessmentId }: { assessmentId: string }) {
+export function StartExamButton({ assessmentId, slug }: { assessmentId: string; slug: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +20,7 @@ export function StartExamButton({ assessmentId }: { assessmentId: string }) {
       });
 
       if (res.status === 401) {
-        router.push(`/login?callbackUrl=/lab/kicad/${assessmentId}`);
+        router.push(`/login?callbackUrl=/lab/${slug}/${assessmentId}`);
         return;
       }
 

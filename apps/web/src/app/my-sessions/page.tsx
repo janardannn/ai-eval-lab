@@ -116,7 +116,7 @@ export default function MySessionsPage() {
             Start an assessment to see your history here.
           </p>
           <Link
-            href="/lab/kicad"
+            href="/labs"
             className="inline-flex h-10 px-5 items-center text-sm font-medium rounded-lg bg-accent text-accent-foreground hover:bg-accent-hover transition-colors active:scale-[0.98]"
           >
             Browse assessments

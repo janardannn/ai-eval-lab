@@ -118,17 +118,31 @@ export default function AssessmentDetailPage() {
         const validFollowUps = q.followUps.filter((f) => f.text.trim());
         return {
           text: q.text.trim(),
-          ...(q.timeLimit > 0 ? { timeLimit: q.timeLimit * 60 } : {}),
+          timeLimit: q.timeLimit * 60,
           ...(validFollowUps.length > 0
             ? {
                 followUps: validFollowUps.map((f) => ({
                   text: f.text.trim(),
-                  ...(f.sameAsParent || f.timeLimit <= 0 ? {} : { timeLimit: f.timeLimit * 60 }),
+                  ...(!f.sameAsParent && f.timeLimit > 0 ? { timeLimit: f.timeLimit * 60 } : {}),
                 })),
               }
             : {}),
         };
       });
+  }
+
+  function validateQuestionTimers(list: QuestionDraft[]): string | null {
+    for (let i = 0; i < list.length; i++) {
+      const q = list[i];
+      if (!q.text.trim()) continue;
+      if (q.timeLimit <= 0) return `Question ${i + 1} is missing a time limit`;
+      for (let fi = 0; fi < q.followUps.length; fi++) {
+        const f = q.followUps[fi];
+        if (!f.text.trim()) continue;
+        if (!f.sameAsParent && f.timeLimit <= 0) return `Follow-up ${fi + 1} of question ${i + 1} is missing a time limit`;
+      }
+    }
+    return null;
   }
 
   function updateQuestion(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number, text: string) {
@@ -167,6 +181,12 @@ export default function AssessmentDetailPage() {
   }
 
   async function handleSave() {
+    const introTimerErr = validateQuestionTimers(introQuestions);
+    if (introTimerErr) { alert(`Intro: ${introTimerErr}`); return; }
+
+    const domainTimerErr = validateQuestionTimers(domainQuestions);
+    if (domainTimerErr) { alert(`Domain: ${domainTimerErr}`); return; }
+
     if (totalWeight() !== 100) { alert("Checkpoint weights must sum to 100"); return; }
 
     setSaving(true);
@@ -217,8 +237,8 @@ export default function AssessmentDetailPage() {
                 <input value={q.text} onChange={(e) => updateQuestion(list, setList, i, e.target.value)}
                   placeholder={`Question ${i + 1}`} className={`flex-1 ${inputClass}`} />
                 <div className="flex items-center gap-1">
-                  <input type="number" value={q.timeLimit || ""} onChange={(e) => updateQuestionTimeLimit(list, setList, i, Number(e.target.value))}
-                    placeholder="min" className="w-16 p-2 border border-foreground/15 rounded bg-background text-sm text-center" />
+                  <input type="number" min={1} value={q.timeLimit || ""} onChange={(e) => updateQuestionTimeLimit(list, setList, i, Number(e.target.value))}
+                    placeholder="min" className={`w-16 p-2 border rounded bg-background text-sm text-center ${q.timeLimit > 0 ? "border-foreground/15" : "border-red-500/50"}`} />
                   <span className="text-xs text-foreground/30">m</span>
                 </div>
                 <button onClick={() => removeQuestion(list, setList, i)}
@@ -232,8 +252,8 @@ export default function AssessmentDetailPage() {
                       placeholder={`Follow-up ${fi + 1}`} className={`flex-1 ${inputClass}`} />
                     {!f.sameAsParent && (
                       <div className="flex items-center gap-1">
-                        <input type="number" value={f.timeLimit || ""} onChange={(e) => updateFollowUpTimer(list, setList, i, fi, Number(e.target.value))}
-                          placeholder="min" className="w-16 p-2 border border-foreground/10 rounded bg-background text-sm text-center" />
+                        <input type="number" min={1} value={f.timeLimit || ""} onChange={(e) => updateFollowUpTimer(list, setList, i, fi, Number(e.target.value))}
+                          placeholder="min" className={`w-16 p-2 border rounded bg-background text-sm text-center ${f.timeLimit > 0 ? "border-foreground/10" : "border-red-500/50"}`} />
                         <span className="text-xs text-foreground/30">m</span>
                       </div>
                     )}
@@ -250,7 +270,7 @@ export default function AssessmentDetailPage() {
                 className="text-xs text-foreground/30 hover:text-foreground/60 ml-6">+ Add follow-up</button>
             </div>
           ))}
-          <button onClick={() => setList([...list, { text: "", timeLimit: 0, followUps: [] }])}
+          <button onClick={() => setList([...list, { text: "", timeLimit: 2, followUps: [] }])}
             className="text-sm text-foreground/40 hover:text-foreground/70">+ Add question</button>
         </div>
       </div>

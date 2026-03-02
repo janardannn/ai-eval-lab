@@ -5,7 +5,27 @@ const prisma = new PrismaClient();
 async function main() {
   await prisma.assessment.upsert({
     where: { id: "led-circuit-easy" },
-    update: {},
+    update: {
+      introConfig: {
+        questions: [
+          { text: "Tell me a bit about yourself — your name, background, and what you're currently working on or studying.", timeLimit: 120 },
+          { text: "How did you first get into electronics or PCB design? Walk me through your journey.", timeLimit: 120 },
+          { text: "What are you hoping to demonstrate in this assessment today?", timeLimit: 90 },
+        ],
+      },
+      domainConfig: {
+        questions: [
+          {
+            text: "Can you explain what a current limiting resistor does in an LED circuit, and why it's necessary?",
+            timeLimit: 120,
+            followUps: [{ text: "How would you calculate the right resistor value given supply voltage, LED forward voltage, and desired current?", timeLimit: 120 }],
+          },
+          { text: "What would happen electrically if you connected an LED directly to a 5V source without a resistor?", timeLimit: 90 },
+          { text: "In KiCad, what's the difference between the F.Cu and B.Cu layers, and when would you route on each?", timeLimit: 120 },
+          { text: "After routing a PCB, how do you verify your design is correct before fabrication?", timeLimit: 120 },
+        ],
+      },
+    },
     create: {
       id: "led-circuit-easy",
       title: "Simple LED Circuit",
@@ -16,24 +36,21 @@ async function main() {
       timeLimit: 1800,
       introConfig: {
         questions: [
-          { text: "Tell me a bit about yourself — your name, background, and what you're currently working on or studying." },
-          { text: "How did you first get into electronics or PCB design? Walk me through your journey." },
-          { text: "What are you hoping to demonstrate in this assessment today?" },
+          { text: "Tell me a bit about yourself — your name, background, and what you're currently working on or studying.", timeLimit: 120 },
+          { text: "How did you first get into electronics or PCB design? Walk me through your journey.", timeLimit: 120 },
+          { text: "What are you hoping to demonstrate in this assessment today?", timeLimit: 90 },
         ],
       },
       domainConfig: {
         questions: [
           {
             text: "Can you explain what a current limiting resistor does in an LED circuit, and why it's necessary?",
-            followUps: ["How would you calculate the right resistor value given supply voltage, LED forward voltage, and desired current?"],
+            timeLimit: 120,
+            followUps: [{ text: "How would you calculate the right resistor value given supply voltage, LED forward voltage, and desired current?", timeLimit: 120 }],
           },
-          { text: "What would happen electrically if you connected an LED directly to a 5V source without a resistor?" },
-          {
-            text: "In KiCad, what's the difference between the F.Cu and B.Cu layers, and when would you route on each?",
-          },
-          {
-            text: "After routing a PCB, how do you verify your design is correct before fabrication?",
-          },
+          { text: "What would happen electrically if you connected an LED directly to a 5V source without a resistor?", timeLimit: 90 },
+          { text: "In KiCad, what's the difference between the F.Cu and B.Cu layers, and when would you route on each?", timeLimit: 120 },
+          { text: "After routing a PCB, how do you verify your design is correct before fabrication?", timeLimit: 120 },
         ],
       },
       labConfig: {
@@ -45,36 +62,11 @@ async function main() {
         ],
         rubric: {
           checkpoints: [
-            {
-              name: "Component Selection",
-              description: "Both R1 and D1 placed on the board",
-              weight: 25,
-              expectedOrder: 1,
-            },
-            {
-              name: "Correct Footprints",
-              description: "Using 0805 footprints for both components",
-              weight: 15,
-              expectedOrder: 1,
-            },
-            {
-              name: "Routing",
-              description: "Track connecting R1 pad to D1 pad on F.Cu",
-              weight: 30,
-              expectedOrder: 2,
-            },
-            {
-              name: "Net Assignment",
-              description: "Components connected with proper net names",
-              weight: 15,
-              expectedOrder: 2,
-            },
-            {
-              name: "Layout Quality",
-              description: "Components reasonably spaced and aligned",
-              weight: 15,
-              expectedOrder: 1,
-            },
+            { name: "Component Selection", description: "Both R1 and D1 placed on the board", weight: 25, expectedOrder: 1 },
+            { name: "Correct Footprints", description: "Using 0805 footprints for both components", weight: 15, expectedOrder: 1 },
+            { name: "Routing", description: "Track connecting R1 pad to D1 pad on F.Cu", weight: 30, expectedOrder: 2 },
+            { name: "Net Assignment", description: "Components connected with proper net names", weight: 15, expectedOrder: 2 },
+            { name: "Layout Quality", description: "Components reasonably spaced and aligned", weight: 15, expectedOrder: 1 },
           ],
         },
       },
@@ -83,7 +75,32 @@ async function main() {
 
   await prisma.assessment.upsert({
     where: { id: "arduino-led-medium" },
-    update: {},
+    update: {
+      introConfig: {
+        questions: [
+          { text: "Tell me a bit about yourself — your name, what you study or work on, and your experience level with electronics.", timeLimit: 120 },
+          { text: "Have you designed a PCB before? If so, describe the most complex board you've worked on.", timeLimit: 150 },
+          { text: "What aspects of PCB design do you find most challenging, and why?", timeLimit: 120 },
+        ],
+      },
+      domainConfig: {
+        questions: [
+          {
+            text: "What is a bypass capacitor, and why do you place them close to IC power pins rather than elsewhere on the board?",
+            timeLimit: 150,
+            followUps: [{ text: "What value bypass capacitor would you typically use for a microcontroller, and why?", timeLimit: 120 }],
+          },
+          { text: "If you have a 5V supply and an LED with a 2V forward voltage that needs 15mA, walk me through the resistor calculation.", timeLimit: 120 },
+          { text: "Explain the difference between a ground plane and individual ground traces. When would you use each approach?", timeLimit: 150 },
+          { text: "Why does component placement order matter in PCB design? What do you typically place first and why?", timeLimit: 120 },
+          {
+            text: "What is DRC in KiCad, what types of errors does it catch, and at what stage of design should you run it?",
+            timeLimit: 150,
+            followUps: [{ text: "What's the difference between a DRC error and a DRC warning?", timeLimit: 90 }],
+          },
+        ],
+      },
+    },
     create: {
       id: "arduino-led-medium",
       title: "Arduino Nano LED Circuit",
@@ -94,27 +111,25 @@ async function main() {
       timeLimit: 2700,
       introConfig: {
         questions: [
-          { text: "Tell me a bit about yourself — your name, what you study or work on, and your experience level with electronics." },
-          { text: "Have you designed a PCB before? If so, describe the most complex board you've worked on." },
-          { text: "What aspects of PCB design do you find most challenging, and why?" },
+          { text: "Tell me a bit about yourself — your name, what you study or work on, and your experience level with electronics.", timeLimit: 120 },
+          { text: "Have you designed a PCB before? If so, describe the most complex board you've worked on.", timeLimit: 150 },
+          { text: "What aspects of PCB design do you find most challenging, and why?", timeLimit: 120 },
         ],
       },
       domainConfig: {
         questions: [
           {
             text: "What is a bypass capacitor, and why do you place them close to IC power pins rather than elsewhere on the board?",
-            followUps: ["What value bypass capacitor would you typically use for a microcontroller, and why?"],
+            timeLimit: 150,
+            followUps: [{ text: "What value bypass capacitor would you typically use for a microcontroller, and why?", timeLimit: 120 }],
           },
-          {
-            text: "If you have a 5V supply and an LED with a 2V forward voltage that needs 15mA, walk me through the resistor calculation.",
-          },
-          {
-            text: "Explain the difference between a ground plane and individual ground traces. When would you use each approach?",
-          },
-          { text: "Why does component placement order matter in PCB design? What do you typically place first and why?" },
+          { text: "If you have a 5V supply and an LED with a 2V forward voltage that needs 15mA, walk me through the resistor calculation.", timeLimit: 120 },
+          { text: "Explain the difference between a ground plane and individual ground traces. When would you use each approach?", timeLimit: 150 },
+          { text: "Why does component placement order matter in PCB design? What do you typically place first and why?", timeLimit: 120 },
           {
             text: "What is DRC in KiCad, what types of errors does it catch, and at what stage of design should you run it?",
-            followUps: ["What's the difference between a DRC error and a DRC warning?"],
+            timeLimit: 150,
+            followUps: [{ text: "What's the difference between a DRC error and a DRC warning?", timeLimit: 90 }],
           },
         ],
       },
@@ -129,42 +144,12 @@ async function main() {
         ],
         rubric: {
           checkpoints: [
-            {
-              name: "Component Selection",
-              description: "All required components placed with correct footprints",
-              weight: 15,
-              expectedOrder: 1,
-            },
-            {
-              name: "Power Filtering",
-              description: "Bulk cap near power input, bypass caps within 5mm of Arduino",
-              weight: 20,
-              expectedOrder: 2,
-            },
-            {
-              name: "LED Circuit Topology",
-              description: "Resistor in series between Arduino GPIO and each LED, correct orientation",
-              weight: 20,
-              expectedOrder: 3,
-            },
-            {
-              name: "Routing Quality",
-              description: "Power traces wider than signal, no acute angles, minimal vias",
-              weight: 20,
-              expectedOrder: 4,
-            },
-            {
-              name: "Ground Plane",
-              description: "Continuous ground pour on back copper, properly connected",
-              weight: 15,
-              expectedOrder: 5,
-            },
-            {
-              name: "DRC Discipline",
-              description: "DRC run at least once, no unresolved errors in final state",
-              weight: 10,
-              expectedOrder: 6,
-            },
+            { name: "Component Selection", description: "All required components placed with correct footprints", weight: 15, expectedOrder: 1 },
+            { name: "Power Filtering", description: "Bulk cap near power input, bypass caps within 5mm of Arduino", weight: 20, expectedOrder: 2 },
+            { name: "LED Circuit Topology", description: "Resistor in series between Arduino GPIO and each LED, correct orientation", weight: 20, expectedOrder: 3 },
+            { name: "Routing Quality", description: "Power traces wider than signal, no acute angles, minimal vias", weight: 20, expectedOrder: 4 },
+            { name: "Ground Plane", description: "Continuous ground pour on back copper, properly connected", weight: 15, expectedOrder: 5 },
+            { name: "DRC Discipline", description: "DRC run at least once, no unresolved errors in final state", weight: 10, expectedOrder: 6 },
           ],
         },
       },
