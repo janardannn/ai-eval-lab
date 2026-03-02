@@ -70,7 +70,8 @@ export function useAudioRecorder(): AudioRecorderState {
       };
 
       // Set up analyser for visualization
-      const ctx = audioCtxRef.current || new AudioContext();
+      const existing = audioCtxRef.current;
+      const ctx = (existing && existing.state !== "closed") ? existing : new AudioContext();
       audioCtxRef.current = ctx;
       const source = ctx.createMediaStreamSource(stream);
       const node = ctx.createAnalyser();
@@ -155,6 +156,7 @@ export function useAudioRecorder(): AudioRecorderState {
       isRecordingRef.current = false;
       if (audioCtxRef.current) {
         try { audioCtxRef.current.close(); } catch {}
+        audioCtxRef.current = null;
       }
     };
   }, []);
