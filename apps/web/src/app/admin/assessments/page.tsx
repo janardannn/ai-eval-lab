@@ -145,16 +145,28 @@ export default function AdminAssessmentsPage() {
                               {a.isActive ? "Active" : "Inactive"}
                             </span>
                           </td>
-                          <td className="p-3 text-right space-x-2">
-                            <Link href={`/admin/assessments/${a.id}/stats`} className="text-xs text-foreground/40 hover:text-foreground/70">
-                              stats
-                            </Link>
-                            <button
-                              onClick={() => toggleActive(a.id, a.isActive)}
-                              className="text-xs text-foreground/40 hover:text-foreground/70"
-                            >
-                              {a.isActive ? "deactivate" : "activate"}
-                            </button>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Link href={`/admin/assessments/${a.id}/stats`} className="text-xs text-foreground/40 hover:text-foreground/70">
+                                stats
+                              </Link>
+                              <Link
+                                href={`/admin/assessments/${a.id}`}
+                                className="text-xs px-2.5 py-1 rounded border border-foreground/15 hover:bg-foreground/5 transition-colors"
+                              >
+                                Edit
+                              </Link>
+                              <button
+                                onClick={() => toggleActive(a.id, a.isActive)}
+                                className={`text-xs px-2.5 py-1 rounded transition-colors ${
+                                  a.isActive
+                                    ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+                                    : "bg-green-500/10 text-green-500 hover:bg-green-500/20"
+                                }`}
+                              >
+                                {a.isActive ? "Deactivate" : "Activate"}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
