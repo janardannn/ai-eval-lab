@@ -94,7 +94,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
     // Reading time: ~1s per 12 chars, min 5s, max 15s
     const readSec = Math.min(15, Math.max(5, Math.round(questionText.length / 12)));
     setReadingTimeLeft(readSec);
-    setQuestionTimeLeft(0);
+    setQuestionTimeLeft(seconds);
 
     readingTimerRef.current = setInterval(() => {
       setReadingTimeLeft((prev) => {
