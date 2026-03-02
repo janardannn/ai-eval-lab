@@ -6,6 +6,7 @@ export interface AudioRecorderState {
   isRecording: boolean;
   analyser: AnalyserNode | null;
   liveTranscript: string;
+  micError: string | null;
   startRecording: () => Promise<void>;
   stopRecording: () => Promise<Blob | undefined>;
   resetRecording: () => void;
@@ -58,6 +59,7 @@ export function useAudioRecorder(): AudioRecorderState {
   const [isRecording, setIsRecording] = useState(false);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [liveTranscript, setLiveTranscript] = useState("");
+  const [micError, setMicError] = useState<string | null>(null);
   const isRecordingRef = useRef(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -66,8 +68,8 @@ export function useAudioRecorder(): AudioRecorderState {
   const mountedRef = useRef(true);
 
   const startRecording = useCallback(async () => {
-    // Tear down any existing session first
     teardown(mediaRecorderRef, recognitionRef);
+    setMicError(null);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -130,6 +132,15 @@ export function useAudioRecorder(): AudioRecorderState {
       setIsRecording(true);
     } catch (err) {
       console.error("[useAudioRecorder] startRecording failed:", err);
+      if (err instanceof DOMException) {
+        if (err.name === "NotFoundError") {
+          setMicError("No microphone found. Close other tabs using the mic and try again.");
+        } else if (err.name === "NotAllowedError") {
+          setMicError("Microphone access denied. Allow mic access in browser settings.");
+        } else {
+          setMicError("Microphone error. Please try again.");
+        }
+      }
     }
   }, []);
 
@@ -182,6 +193,7 @@ export function useAudioRecorder(): AudioRecorderState {
     isRecording,
     analyser,
     liveTranscript,
+    micError,
     startRecording,
     stopRecording,
     resetRecording,

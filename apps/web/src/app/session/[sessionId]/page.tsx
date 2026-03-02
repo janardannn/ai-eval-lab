@@ -33,16 +33,21 @@ function MicControls({ recorder, disabled }: { recorder: ReturnType<typeof useAu
   }
 
   return (
-    <button
-      onClick={recorder.startRecording}
-      disabled={disabled}
-      className="w-full h-11 text-sm font-medium rounded-lg ring-1 ring-border bg-muted hover:bg-muted/80 transition-all duration-75 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
-    >
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
-      </svg>
-      Record Answer
-    </button>
+    <div className="space-y-2">
+      <button
+        onClick={recorder.startRecording}
+        disabled={disabled}
+        className="w-full h-11 text-sm font-medium rounded-lg ring-1 ring-border bg-muted hover:bg-muted/80 transition-all duration-75 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+        </svg>
+        Record Answer
+      </button>
+      {recorder.micError && (
+        <p className="text-xs text-center text-red-400">{recorder.micError}</p>
+      )}
+    </div>
   );
 }
 
