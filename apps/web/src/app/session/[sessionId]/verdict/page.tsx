@@ -145,7 +145,7 @@ export default function VerdictPage() {
             Checkpoint Scores
           </h2>
           <div className="grid gap-4">
-            {Object.entries(report.checkpointScores).map(([name, score]) => (
+            {Object.entries(report.checkpointScores || {}).map(([name, score]) => (
               <div
                 key={name}
                 className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 p-5 rounded-lg ring-1 ring-border bg-card shadow-lg shadow-black/[0.03] dark:shadow-black/20"
