@@ -54,7 +54,7 @@ export default function VerdictPage() {
         // 202 = still grading, keep polling
         if (res.status === 202) {
           attempts.current++;
-          if (attempts.current > 40) {
+          if (attempts.current > 60) {
             setError("Grading is taking longer than expected. Please try refreshing later.");
             setLoading(false);
             return;

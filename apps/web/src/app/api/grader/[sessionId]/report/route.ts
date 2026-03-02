@@ -16,13 +16,13 @@ export async function GET(
       where: { id: sessionId },
       select: { status: true },
     });
-    if (session?.status === "abandoned") {
+    if (!session) {
+      return NextResponse.json({ error: "session not found" }, { status: 404 });
+    }
+    if (session.status === "abandoned") {
       return NextResponse.json({ error: "session_abandoned" }, { status: 410 });
     }
-    if (session?.status === "active" || session?.status === "completed") {
-      return NextResponse.json({ status: "grading" }, { status: 202 });
-    }
-    return NextResponse.json({ error: "grade not found" }, { status: 404 });
+    return NextResponse.json({ status: "grading" }, { status: 202 });
   }
 
   return NextResponse.json({
