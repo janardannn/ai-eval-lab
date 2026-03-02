@@ -147,12 +147,15 @@ export default function AdminAssessmentsPage() {
                           </td>
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <Link href={`/admin/assessments/${a.id}/stats`} className="text-xs text-foreground/40 hover:text-foreground/70">
-                                stats
+                              <Link
+                                href={`/admin/assessments/${a.id}/stats`}
+                                className="text-xs px-2.5 py-1 rounded border border-foreground/15 hover:bg-foreground/5 transition-colors"
+                              >
+                                Stats
                               </Link>
                               <Link
                                 href={`/admin/assessments/${a.id}`}
-                                className="text-xs px-2.5 py-1 rounded border border-foreground/15 hover:bg-foreground/5 transition-colors"
+                                className="text-xs px-2.5 py-1 rounded bg-foreground/10 hover:bg-foreground/15 transition-colors"
                               >
                                 Edit
                               </Link>
