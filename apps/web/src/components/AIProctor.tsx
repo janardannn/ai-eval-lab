@@ -47,23 +47,41 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
   const [transcript, setTranscript] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [questionTimeLeft, setQuestionTimeLeft] = useState(0);
+  const questionTimeLimitRef = useRef(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  // Synchronous guard — React state batching can't bypass this
   const busyRef = useRef(false);
-  // Prevent concurrent/duplicate fetchQuestion calls
   const fetchingRef = useRef(false);
   const mountedRef = useRef(false);
   const aliveRef = useRef(true);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Stop audio when component unmounts (e.g. user navigates away)
   useEffect(() => {
     aliveRef.current = true;
     return () => {
       aliveRef.current = false;
       stopAudio();
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  function startQuestionTimer(seconds: number) {
+    if (timerRef.current) clearInterval(timerRef.current);
+    questionTimeLimitRef.current = seconds;
+    if (seconds <= 0) { setQuestionTimeLeft(0); return; }
+    setQuestionTimeLeft(seconds);
+    timerRef.current = setInterval(() => {
+      setQuestionTimeLeft((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          timerRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
 
   const fetchQuestion = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -80,6 +98,8 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
 
       if (!aliveRef.current) return;
       setCurrentQuestion(data.question);
+      setTranscript("");
+      startQuestionTimer(data.timeLimit || 0);
       if (data.audio) playAudioDelayed(data.audio);
     } finally {
       setIsLoading(false);
@@ -93,6 +113,51 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
       fetchQuestion();
     }
   }, [fetchQuestion]);
+
+  // Auto-submit when per-question timer expires
+  useEffect(() => {
+    if (questionTimeLeft !== 0 || questionTimeLimitRef.current <= 0 || busyRef.current || !currentQuestion) return;
+
+    async function autoSubmit() {
+      if (busyRef.current) return;
+      busyRef.current = true;
+      stopAudio();
+      setIsLoading(true);
+
+      try {
+        let body: BodyInit;
+        let headers: HeadersInit | undefined;
+
+        if (isRecording && mediaRecorderRef.current?.state === "recording") {
+          const blob = await new Promise<Blob>((resolve) => {
+            const recorder = mediaRecorderRef.current!;
+            recorder.onstop = () => {
+              const b = new Blob(chunksRef.current, { type: "audio/webm" });
+              recorder.stream.getTracks().forEach((t) => t.stop());
+              resolve(b);
+            };
+            recorder.stop();
+          });
+          setIsRecording(false);
+          body = blob;
+        } else {
+          headers = { "Content-Type": "application/json" };
+          body = JSON.stringify({ transcript: transcript || "(no response — time expired)" });
+        }
+
+        const res = await fetch(`/api/ai/${sessionId}/answer`, { method: "POST", headers, body });
+        const data = await res.json();
+        if (aliveRef.current) await handleAnswerResponse(data);
+      } finally {
+        setIsLoading(false);
+        busyRef.current = false;
+        setTranscript("");
+      }
+    }
+
+    autoSubmit();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionTimeLeft]);
 
   async function startRecording() {
     if (busyRef.current) return;
@@ -237,6 +302,21 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
       {currentQuestion && (
         <div className="flex-1 flex flex-col justify-center mb-4">
           <div className="relative">
+            {questionTimeLimitRef.current > 0 && (
+              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md ring-1 text-xs font-mono font-semibold mb-3 ${
+                questionTimeLeft <= 10
+                  ? "ring-red-500/30 bg-red-500/10 text-red-400 animate-pulse"
+                  : questionTimeLeft <= 30
+                    ? "ring-yellow-500/30 bg-yellow-500/10 text-yellow-400"
+                    : "ring-border bg-muted text-muted-foreground"
+              }`}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                {String(Math.floor(questionTimeLeft / 60)).padStart(2, "0")}:{String(questionTimeLeft % 60).padStart(2, "0")}
+              </div>
+            )}
             <p className={`text-lg font-medium mb-8 leading-relaxed transition-opacity duration-200 ${isLoading ? "opacity-50" : ""}`}>
               {currentQuestion}
             </p>

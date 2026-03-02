@@ -5,9 +5,16 @@ import { useRouter } from "next/navigation";
 
 const STEPS = ["General", "Intro", "Domain", "Lab", "Review"];
 
+interface FollowUpDraft {
+  text: string;
+  timeLimit: number;
+  sameAsParent: boolean;
+}
+
 interface QuestionDraft {
   text: string;
-  followUps: string[];
+  timeLimit: number;
+  followUps: FollowUpDraft[];
 }
 
 interface CheckpointDraft {
@@ -31,13 +38,13 @@ export default function NewAssessmentPage() {
   });
 
   const [introQuestions, setIntroQuestions] = useState<QuestionDraft[]>([
-    { text: "Tell me about yourself and your background.", followUps: [] },
-    { text: "What's your experience with PCB design or electronics?", followUps: [] },
-    { text: "What motivated you to take this assessment?", followUps: [] },
+    { text: "Tell me about yourself and your background.", timeLimit: 0, followUps: [] },
+    { text: "What's your experience with PCB design or electronics?", timeLimit: 0, followUps: [] },
+    { text: "What motivated you to take this assessment?", timeLimit: 0, followUps: [] },
   ]);
 
   const [domainQuestions, setDomainQuestions] = useState<QuestionDraft[]>([
-    { text: "", followUps: [] },
+    { text: "", timeLimit: 0, followUps: [] },
   ]);
 
   const [problemStatement, setProblemStatement] = useState("");
@@ -53,20 +60,42 @@ export default function NewAssessmentPage() {
     setList(next);
   }
 
+  function updateQuestionTimeLimit(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number, timeLimit: number) {
+    const next = [...list];
+    next[i] = { ...next[i], timeLimit };
+    setList(next);
+  }
+
   function removeQuestion(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number) {
     setList(list.filter((_, j) => j !== i));
   }
 
   function addFollowUp(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number) {
     const next = [...list];
-    next[i] = { ...next[i], followUps: [...next[i].followUps, ""] };
+    next[i] = { ...next[i], followUps: [...next[i].followUps, { text: "", timeLimit: 0, sameAsParent: true }] };
     setList(next);
   }
 
   function updateFollowUp(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, qi: number, fi: number, val: string) {
     const next = [...list];
     const fups = [...next[qi].followUps];
-    fups[fi] = val;
+    fups[fi] = { ...fups[fi], text: val };
+    next[qi] = { ...next[qi], followUps: fups };
+    setList(next);
+  }
+
+  function updateFollowUpTimer(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, qi: number, fi: number, timeLimit: number) {
+    const next = [...list];
+    const fups = [...next[qi].followUps];
+    fups[fi] = { ...fups[fi], timeLimit };
+    next[qi] = { ...next[qi], followUps: fups };
+    setList(next);
+  }
+
+  function toggleFollowUpSameAsParent(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, qi: number, fi: number) {
+    const next = [...list];
+    const fups = [...next[qi].followUps];
+    fups[fi] = { ...fups[fi], sameAsParent: !fups[fi].sameAsParent, timeLimit: 0 };
     next[qi] = { ...next[qi], followUps: fups };
     setList(next);
   }
@@ -84,17 +113,25 @@ export default function NewAssessmentPage() {
   function filterQuestions(list: QuestionDraft[]) {
     return list
       .filter((q) => q.text.trim())
-      .map((q) => ({
-        text: q.text.trim(),
-        ...(q.followUps.filter((f) => f.trim()).length > 0
-          ? { followUps: q.followUps.filter((f) => f.trim()) }
-          : {}),
-      }));
+      .map((q) => {
+        const validFollowUps = q.followUps.filter((f) => f.text.trim());
+        return {
+          text: q.text.trim(),
+          ...(q.timeLimit > 0 ? { timeLimit: q.timeLimit * 60 } : {}),
+          ...(validFollowUps.length > 0
+            ? {
+                followUps: validFollowUps.map((f) => ({
+                  text: f.text.trim(),
+                  ...(f.sameAsParent || f.timeLimit <= 0 ? {} : { timeLimit: f.timeLimit * 60 }),
+                })),
+              }
+            : {}),
+        };
+      });
   }
 
   function countTotal(list: QuestionDraft[]) {
-    const filtered = filterQuestions(list);
-    return filtered.reduce((s, q) => s + 1 + (q.followUps?.length ?? 0), 0);
+    return list.filter((q) => q.text.trim()).reduce((s, q) => s + 1 + q.followUps.filter((f) => f.text.trim()).length, 0);
   }
 
   async function handleCreate() {
@@ -157,27 +194,60 @@ export default function NewAssessmentPage() {
                 placeholder={`Question ${i + 1}`}
                 className="flex-1 p-2 border border-foreground/15 rounded bg-background text-sm"
               />
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={q.timeLimit || ""}
+                  onChange={(e) => updateQuestionTimeLimit(list, setList, i, Number(e.target.value))}
+                  placeholder="min"
+                  className="w-16 p-2 border border-foreground/15 rounded bg-background text-sm text-center"
+                />
+                <span className="text-xs text-foreground/30">m</span>
+              </div>
               <button onClick={() => removeQuestion(list, setList, i)}
                 className="text-red-500/60 hover:text-red-500 text-xs px-2">remove</button>
             </div>
             {q.followUps.map((f, fi) => (
-              <div key={fi} className="flex gap-2 ml-6">
-                <span className="text-foreground/30 text-xs mt-2.5">↳</span>
-                <input
-                  value={f}
-                  onChange={(e) => updateFollowUp(list, setList, i, fi, e.target.value)}
-                  placeholder={`Follow-up ${fi + 1}`}
-                  className="flex-1 p-2 border border-foreground/10 rounded bg-background text-sm"
-                />
-                <button onClick={() => removeFollowUp(list, setList, i, fi)}
-                  className="text-red-500/60 hover:text-red-500 text-xs px-2">x</button>
+              <div key={fi} className="space-y-1 ml-6">
+                <div className="flex gap-2">
+                  <span className="text-foreground/30 text-xs mt-2.5">↳</span>
+                  <input
+                    value={f.text}
+                    onChange={(e) => updateFollowUp(list, setList, i, fi, e.target.value)}
+                    placeholder={`Follow-up ${fi + 1}`}
+                    className="flex-1 p-2 border border-foreground/10 rounded bg-background text-sm"
+                  />
+                  {!f.sameAsParent && (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={f.timeLimit || ""}
+                        onChange={(e) => updateFollowUpTimer(list, setList, i, fi, Number(e.target.value))}
+                        placeholder="sec"
+                        className="w-16 p-2 border border-foreground/10 rounded bg-background text-sm text-center"
+                      />
+                      <span className="text-xs text-foreground/30">s</span>
+                    </div>
+                  )}
+                  <button onClick={() => removeFollowUp(list, setList, i, fi)}
+                    className="text-red-500/60 hover:text-red-500 text-xs px-2">x</button>
+                </div>
+                <label className="flex items-center gap-1.5 ml-5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={f.sameAsParent}
+                    onChange={() => toggleFollowUpSameAsParent(list, setList, i, fi)}
+                    className="w-3 h-3"
+                  />
+                  <span className="text-xs text-foreground/30">Same as parent</span>
+                </label>
               </div>
             ))}
             <button onClick={() => addFollowUp(list, setList, i)}
               className="text-xs text-foreground/30 hover:text-foreground/60 ml-6">+ Add follow-up</button>
           </div>
         ))}
-        <button onClick={() => setList([...list, { text: "", followUps: [] }])}
+        <button onClick={() => setList([...list, { text: "", timeLimit: 0, followUps: [] }])}
           className="text-sm text-foreground/40 hover:text-foreground/70">+ Add question</button>
       </div>
     );
@@ -346,9 +416,15 @@ export default function NewAssessmentPage() {
             <h3 className="font-semibold">Intro ({countTotal(introQuestions)} total questions)</h3>
             {filterQuestions(introQuestions).map((q, i) => (
               <div key={i}>
-                <p className="text-foreground/60">{i + 1}. {q.text}</p>
-                {q.followUps?.map((f, fi) => (
-                  <p key={fi} className="text-foreground/40 ml-6">↳ {f}</p>
+                <p className="text-foreground/60">
+                  {i + 1}. {q.text}
+                  {q.timeLimit ? <span className="text-foreground/30 ml-2">({Math.round(q.timeLimit / 60)}m)</span> : null}
+                </p>
+                {q.followUps?.map((f: { text: string; timeLimit?: number }, fi: number) => (
+                  <p key={fi} className="text-foreground/40 ml-6">
+                    ↳ {f.text}
+                    {f.timeLimit ? <span className="text-foreground/30 ml-2">({Math.round(f.timeLimit / 60)}m)</span> : null}
+                  </p>
                 ))}
               </div>
             ))}
@@ -357,9 +433,15 @@ export default function NewAssessmentPage() {
             <h3 className="font-semibold">Domain ({countTotal(domainQuestions)} total questions)</h3>
             {filterQuestions(domainQuestions).map((q, i) => (
               <div key={i}>
-                <p className="text-foreground/60">{i + 1}. {q.text}</p>
-                {q.followUps?.map((f, fi) => (
-                  <p key={fi} className="text-foreground/40 ml-6">↳ {f}</p>
+                <p className="text-foreground/60">
+                  {i + 1}. {q.text}
+                  {q.timeLimit ? <span className="text-foreground/30 ml-2">({Math.round(q.timeLimit / 60)}m)</span> : null}
+                </p>
+                {q.followUps?.map((f: { text: string; timeLimit?: number }, fi: number) => (
+                  <p key={fi} className="text-foreground/40 ml-6">
+                    ↳ {f.text}
+                    {f.timeLimit ? <span className="text-foreground/30 ml-2">({Math.round(f.timeLimit / 60)}m)</span> : null}
+                  </p>
                 ))}
               </div>
             ))}
