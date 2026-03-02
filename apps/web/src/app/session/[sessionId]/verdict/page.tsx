@@ -39,7 +39,20 @@ export default function VerdictPage() {
     async function poll() {
       try {
         const res = await fetch(`/api/grader/${sessionId}/report`);
-        if (res.ok) {
+
+        // 202 = still grading, keep polling (check before res.ok since 202 is also "ok")
+        if (res.status === 202) {
+          attempts.current++;
+          if (attempts.current > 60) {
+            setError("Grading is taking longer than expected. Please try refreshing later.");
+            setLoading(false);
+            return;
+          }
+          setTimeout(poll, 3000);
+          return;
+        }
+
+        if (res.status === 200) {
           setReport(await res.json());
           setLoading(false);
           return;
@@ -48,18 +61,6 @@ export default function VerdictPage() {
         if (res.status === 410) {
           setError("This session was ended before grading could complete.");
           setLoading(false);
-          return;
-        }
-
-        // 202 = still grading, keep polling
-        if (res.status === 202) {
-          attempts.current++;
-          if (attempts.current > 40) {
-            setError("Grading is taking longer than expected. Please try refreshing later.");
-            setLoading(false);
-            return;
-          }
-          setTimeout(poll, 3000);
           return;
         }
 
