@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireSessionOwner } from "@/lib/session-auth";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { sessionId } = await params;
+
+  const denied = await requireSessionOwner(sessionId);
+  if (denied) return denied;
 
   const grade = await prisma.grade.findUnique({
     where: { sessionId },

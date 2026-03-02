@@ -8,6 +8,7 @@ import {
   setQAPosition,
 } from "@/lib/redis";
 import { speechToText } from "@/lib/stt";
+import { requireSessionOwner } from "@/lib/session-auth";
 
 interface QuestionItem {
   text: string;
@@ -23,6 +24,10 @@ export async function POST(
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { sessionId } = await params;
+
+  const denied = await requireSessionOwner(sessionId);
+  if (denied) return denied;
+
   const state = await getSessionState(sessionId);
 
   if (!state) {

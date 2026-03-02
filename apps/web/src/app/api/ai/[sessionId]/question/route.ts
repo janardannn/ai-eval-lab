@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionState, getQAPosition, setPendingQuestion } from "@/lib/redis";
 import { textToSpeech, questionTextHash } from "@/lib/tts";
+import { requireSessionOwner } from "@/lib/session-auth";
 
 interface FollowUpItem {
   text: string;
@@ -48,6 +49,10 @@ export async function POST(
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { sessionId } = await params;
+
+  const denied = await requireSessionOwner(sessionId);
+  if (denied) return denied;
+
   const state = await getSessionState(sessionId);
 
   if (!state) {
