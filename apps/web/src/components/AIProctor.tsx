@@ -48,7 +48,10 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
   const [isRecording, setIsRecording] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [questionTimeLeft, setQuestionTimeLeft] = useState(0);
+  const [readingTimeLeft, setReadingTimeLeft] = useState(0);
   const questionTimeLimitRef = useRef(0);
+  const readingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isRecordingRef = useRef(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const busyRef = useRef(false);
@@ -63,19 +66,42 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
       aliveRef.current = false;
       stopAudio();
       if (timerRef.current) clearInterval(timerRef.current);
+      if (readingTimerRef.current) clearInterval(readingTimerRef.current);
     };
   }, []);
 
-  function startQuestionTimer(seconds: number) {
+  function startAnswerCountdown(seconds: number) {
     if (timerRef.current) clearInterval(timerRef.current);
-    questionTimeLimitRef.current = seconds;
-    if (seconds <= 0) { setQuestionTimeLeft(0); return; }
     setQuestionTimeLeft(seconds);
     timerRef.current = setInterval(() => {
       setQuestionTimeLeft((prev) => {
         if (prev <= 1) {
           if (timerRef.current) clearInterval(timerRef.current);
           timerRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  function startQuestionTimer(seconds: number, questionText: string) {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (readingTimerRef.current) clearInterval(readingTimerRef.current);
+    questionTimeLimitRef.current = seconds;
+    if (seconds <= 0) { setQuestionTimeLeft(0); setReadingTimeLeft(0); return; }
+
+    // Reading time: ~1s per 12 chars, min 5s, max 15s
+    const readSec = Math.min(15, Math.max(5, Math.round(questionText.length / 12)));
+    setReadingTimeLeft(readSec);
+    setQuestionTimeLeft(0);
+
+    readingTimerRef.current = setInterval(() => {
+      setReadingTimeLeft((prev) => {
+        if (prev <= 1) {
+          if (readingTimerRef.current) clearInterval(readingTimerRef.current);
+          readingTimerRef.current = null;
+          startAnswerCountdown(seconds);
           return 0;
         }
         return prev - 1;
@@ -99,7 +125,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
       if (!aliveRef.current) return;
       setCurrentQuestion(data.question);
       setTranscript("");
-      startQuestionTimer(data.timeLimit || 0);
+      startQuestionTimer(data.timeLimit || 0, data.question);
       if (data.audio) playAudioDelayed(data.audio);
     } finally {
       setIsLoading(false);
@@ -128,7 +154,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
         let body: BodyInit;
         let headers: HeadersInit | undefined;
 
-        if (isRecording && mediaRecorderRef.current?.state === "recording") {
+        if (isRecordingRef.current && mediaRecorderRef.current?.state === "recording") {
           const blob = await new Promise<Blob>((resolve) => {
             const recorder = mediaRecorderRef.current!;
             recorder.onstop = () => {
@@ -138,6 +164,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
             };
             recorder.stop();
           });
+          isRecordingRef.current = false;
           setIsRecording(false);
           body = blob;
         } else {
@@ -173,6 +200,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
 
       recorder.start();
       mediaRecorderRef.current = recorder;
+      isRecordingRef.current = true;
       setIsRecording(true);
     } catch {
       // Mic access denied
@@ -190,6 +218,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
         resolve(blob);
       };
       recorder.stop();
+      isRecordingRef.current = false;
       setIsRecording(false);
     });
   }
@@ -303,19 +332,29 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
         <div className="flex-1 flex flex-col justify-center mb-4">
           <div className="relative">
             {questionTimeLimitRef.current > 0 && (
-              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md ring-1 text-xs font-mono font-semibold mb-3 ${
-                questionTimeLeft <= 10
-                  ? "ring-red-500/30 bg-red-500/10 text-red-400 animate-pulse"
-                  : questionTimeLeft <= 30
-                    ? "ring-yellow-500/30 bg-yellow-500/10 text-yellow-400"
-                    : "ring-border bg-muted text-muted-foreground"
-              }`}>
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
-                </svg>
-                {String(Math.floor(questionTimeLeft / 60)).padStart(2, "0")}:{String(questionTimeLeft % 60).padStart(2, "0")}
-              </div>
+              readingTimeLeft > 0 ? (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md ring-1 ring-accent/30 bg-accent/10 text-accent text-xs font-mono font-semibold mb-3">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Read — {readingTimeLeft}s
+                </div>
+              ) : (
+                <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md ring-1 text-xs font-mono font-semibold mb-3 ${
+                  questionTimeLeft <= 10
+                    ? "ring-red-500/30 bg-red-500/10 text-red-400 animate-pulse"
+                    : questionTimeLeft <= 30
+                      ? "ring-yellow-500/30 bg-yellow-500/10 text-yellow-400"
+                      : "ring-border bg-muted text-muted-foreground"
+                }`}>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  {String(Math.floor(questionTimeLeft / 60)).padStart(2, "0")}:{String(questionTimeLeft % 60).padStart(2, "0")}
+                </div>
+              )
             )}
             <p className={`text-lg font-medium mb-8 leading-relaxed transition-opacity duration-200 ${isLoading ? "opacity-50" : ""}`}>
               {currentQuestion}
@@ -336,15 +375,15 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
                 handleSubmitText();
               }
             }}
-            disabled={isLoading}
-            placeholder="Type your answer or use the mic..."
+            disabled={isLoading || readingTimeLeft > 0}
+            placeholder={readingTimeLeft > 0 ? "Read the question first..." : "Type your answer or use the mic..."}
             className="w-full p-3 ring-1 ring-border rounded-md bg-muted text-sm resize-none h-24 focus:outline-none focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           />
 
           <div className="flex gap-3 mt-3">
             <button
               onClick={handleSubmitText}
-              disabled={!transcript.trim() || isLoading}
+              disabled={!transcript.trim() || isLoading || readingTimeLeft > 0}
               className="h-9 px-4 text-sm font-medium rounded-md bg-accent text-accent-foreground hover:bg-accent-hover shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
             >
               Send
@@ -353,7 +392,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
             {!isRecording ? (
               <button
                 onClick={startRecording}
-                disabled={isLoading}
+                disabled={isLoading || readingTimeLeft > 0}
                 className="h-9 px-4 text-sm font-medium rounded-md bg-muted ring-1 ring-border hover:bg-muted/80 transition-all duration-75 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1.5"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
