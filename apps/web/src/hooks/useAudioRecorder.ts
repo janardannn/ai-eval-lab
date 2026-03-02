@@ -29,17 +29,22 @@ function createSpeechRecognition(): SpeechRecognitionInstance | null {
   return recognition;
 }
 
-function killRecorder(
+function getMimeType(): string {
+  if (typeof MediaRecorder === "undefined") return "audio/webm";
+  if (MediaRecorder.isTypeSupported("audio/webm")) return "audio/webm";
+  if (MediaRecorder.isTypeSupported("audio/mp4")) return "audio/mp4";
+  return "";
+}
+
+function teardown(
   mediaRecorderRef: React.RefObject<MediaRecorder | null>,
   recognitionRef: React.RefObject<SpeechRecognitionInstance>,
 ) {
   const rec = mediaRecorderRef.current;
   if (rec) {
-    // Stop all mic tracks immediately
     rec.stream.getTracks().forEach((t) => t.stop());
-    if (rec.state === "recording") {
-      rec.onstop = null;
-      rec.stop();
+    if (rec.state !== "inactive") {
+      try { rec.stop(); } catch {}
     }
     mediaRecorderRef.current = null;
   }
@@ -58,18 +63,30 @@ export function useAudioRecorder(): AudioRecorderState {
   const chunksRef = useRef<Blob[]>([]);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance>(null);
+  const mountedRef = useRef(true);
 
   const startRecording = useCallback(async () => {
+    // Tear down any existing session first
+    teardown(mediaRecorderRef, recognitionRef);
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      const mime = getMimeType();
+      const recorder = mime
+        ? new MediaRecorder(stream, { mimeType: mime })
+        : new MediaRecorder(stream);
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
-      // Set up analyser for visualization
+      // Analyser for visualization
       const existing = audioCtxRef.current;
       const ctx = (existing && existing.state !== "closed") ? existing : new AudioContext();
       audioCtxRef.current = ctx;
@@ -80,7 +97,7 @@ export function useAudioRecorder(): AudioRecorderState {
       source.connect(node);
       setAnalyser(node);
 
-      // Start live STT
+      // Live STT
       setLiveTranscript("");
       const recognition = createSpeechRecognition();
       if (recognition) {
@@ -111,19 +128,18 @@ export function useAudioRecorder(): AudioRecorderState {
       mediaRecorderRef.current = recorder;
       isRecordingRef.current = true;
       setIsRecording(true);
-    } catch {
-      // Mic access denied
+    } catch (err) {
+      console.error("[useAudioRecorder] startRecording failed:", err);
     }
   }, []);
 
   const resetRecording = useCallback(() => {
-    killRecorder(mediaRecorderRef, recognitionRef);
+    teardown(mediaRecorderRef, recognitionRef);
     setAnalyser(null);
     setLiveTranscript("");
     chunksRef.current = [];
-    // Keep isRecording true so UI stays in recording mode
-    // startRecording will be called after a tick to avoid race conditions
-    setTimeout(() => { startRecording(); }, 50);
+    // Small delay for browser to release mic before re-acquiring
+    setTimeout(() => { startRecording(); }, 100);
   }, [startRecording]);
 
   const stopRecording = useCallback(async (): Promise<Blob | undefined> => {
@@ -139,7 +155,7 @@ export function useAudioRecorder(): AudioRecorderState {
 
     return new Promise<Blob>((resolve) => {
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
         recorder.stream.getTracks().forEach((t) => t.stop());
         resolve(blob);
       };
@@ -149,10 +165,11 @@ export function useAudioRecorder(): AudioRecorderState {
     });
   }, []);
 
-  // Clean up on unmount
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
-      killRecorder(mediaRecorderRef, recognitionRef);
+      mountedRef.current = false;
+      teardown(mediaRecorderRef, recognitionRef);
       isRecordingRef.current = false;
       if (audioCtxRef.current) {
         try { audioCtxRef.current.close(); } catch {}
