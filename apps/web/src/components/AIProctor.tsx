@@ -199,29 +199,6 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam, record
     }
   }
 
-  async function handleSubmitText() {
-    if (!transcript.trim() || !currentQuestion || busyRef.current) return;
-    busyRef.current = true;
-    stopAudio();
-
-    const answer = transcript;
-    setIsLoading(true);
-    setTranscript("");
-
-    try {
-      const res = await fetch(`/api/ai/${sessionId}/answer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: answer }),
-      });
-      const data = await res.json();
-      await handleAnswerResponse(data);
-    } finally {
-      setIsLoading(false);
-      busyRef.current = false;
-    }
-  }
-
   async function handleAnswerResponse(data: { eval: string; nextPhase?: string }) {
     if (!aliveRef.current) return;
     if (data.eval === "done") {
@@ -332,58 +309,46 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam, record
 
           <textarea
             value={transcript}
-            onChange={(e) => { if (!busyRef.current) setTranscript(e.target.value); }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmitText();
-              }
-            }}
+            readOnly
             disabled={isLoading || readingTimeLeft > 0}
-            placeholder={readingTimeLeft > 0 ? "Read the question first..." : recorder?.isRecording ? "Listening..." : "Type your answer or use the mic..."}
-            className="w-full p-3 ring-1 ring-border rounded-md bg-muted text-sm resize-none h-24 focus:outline-none focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            placeholder={readingTimeLeft > 0 ? "Read the question first..." : recorder?.isRecording ? "Listening..." : "Press record to answer..."}
+            className="w-full p-3 ring-1 ring-border rounded-md bg-muted text-sm resize-none h-24 focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-default"
           />
 
-          <div className="flex gap-3 mt-3">
-            <button
-              onClick={handleSubmitText}
-              disabled={!transcript.trim() || isLoading || readingTimeLeft > 0}
-              className="h-9 px-4 text-sm font-medium rounded-md bg-accent text-accent-foreground hover:bg-accent-hover shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
-            >
-              Send
-            </button>
-
-            {!recorder && (
-              <>
-                {/* Fallback inline mic controls when no external recorder provided (lab phase) */}
-              </>
-            )}
-
-            {recorder && (
-              !recorder.isRecording ? (
+          {recorder && (
+            <div className="flex gap-3 mt-3">
+              {!recorder.isRecording ? (
                 <button
-                  onClick={() => { stopAudio(); recorder.startRecording(); }}
+                  onClick={() => { stopAudio(); setTranscript(""); recorder.startRecording(); }}
                   disabled={isLoading || readingTimeLeft > 0}
-                  className="h-9 px-4 text-sm font-medium rounded-md bg-muted ring-1 ring-border hover:bg-muted/80 transition-all duration-75 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1.5"
+                  className="h-9 px-4 text-sm font-medium rounded-md bg-accent text-accent-foreground hover:bg-accent-hover shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1.5"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
                   </svg>
-                  Record
+                  Record Answer
                 </button>
               ) : (
-                <button
-                  onClick={handleExternalAudioSubmit}
-                  className="h-9 px-4 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 transition-all duration-75 active:scale-[0.98] flex items-center gap-1.5 animate-pulse"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <rect x="6" y="6" width="12" height="12" rx="2" />
-                  </svg>
-                  Stop & Send
-                </button>
-              )
-            )}
-          </div>
+                <>
+                  <button
+                    onClick={async () => { await recorder.stopRecording(); setTranscript(""); recorder.startRecording(); }}
+                    className="h-9 px-4 text-sm font-medium rounded-md ring-1 ring-border hover:bg-muted transition-all duration-75 active:scale-[0.98] flex items-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                    </svg>
+                    Reset
+                  </button>
+                  <button
+                    onClick={handleExternalAudioSubmit}
+                    className="h-9 px-4 text-sm font-medium rounded-md bg-accent text-accent-foreground hover:bg-accent-hover shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-150 active:scale-[0.98] flex items-center gap-1.5"
+                  >
+                    Send
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
