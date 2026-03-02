@@ -3,22 +3,43 @@ import { prisma } from "@/lib/db";
 import { getSessionState, getQAPosition, setPendingQuestion } from "@/lib/redis";
 import { textToSpeech } from "@/lib/tts";
 
+interface FollowUpItem {
+  text: string;
+  timeLimit?: number;
+}
+
 interface QuestionItem {
   text: string;
-  followUps?: string[];
+  timeLimit?: number;
+  followUps?: (string | FollowUpItem)[];
 }
 
 interface PhaseConfig {
   questions: (QuestionItem | string)[];
 }
 
-/** Look up the current question based on position */
-function getQuestionAtPosition(config: PhaseConfig, qi: number, fi: number): string | null {
+interface QuestionResult {
+  text: string;
+  timeLimit: number;
+}
+
+/** Look up the current question and its timeLimit based on position */
+function getQuestionAtPosition(config: PhaseConfig, qi: number, fi: number): QuestionResult | null {
   if (qi >= config.questions.length) return null;
   const q = config.questions[qi];
-  const mainText = typeof q === "string" ? q : q.text;
-  if (fi === -1) return mainText;
-  if (typeof q !== "string" && q.followUps && fi < q.followUps.length) return q.followUps[fi];
+  const parentTimeLimit = typeof q === "string" ? 0 : (q.timeLimit || 0);
+
+  if (fi === -1) {
+    const text = typeof q === "string" ? q : q.text;
+    return { text, timeLimit: parentTimeLimit };
+  }
+
+  if (typeof q !== "string" && q.followUps && fi < q.followUps.length) {
+    const f = q.followUps[fi];
+    if (typeof f === "string") return { text: f, timeLimit: parentTimeLimit };
+    return { text: f.text, timeLimit: f.timeLimit || parentTimeLimit };
+  }
+
   return null;
 }
 
@@ -42,7 +63,7 @@ export async function POST(
     return NextResponse.json({ error: "session not found" }, { status: 404 });
   }
 
-  let questionText: string | null;
+  let result: QuestionResult | null;
 
   if (state.phase === "intro") {
     const config = session.assessment.introConfig as unknown as PhaseConfig;
@@ -52,7 +73,7 @@ export async function POST(
       return NextResponse.json({ done: true, nextPhase: "domain" });
     }
 
-    questionText = getQuestionAtPosition(config, pos.qi, pos.fi);
+    result = getQuestionAtPosition(config, pos.qi, pos.fi);
   } else if (state.phase === "domain") {
     const config = session.assessment.domainConfig as unknown as PhaseConfig;
     const pos = await getQAPosition(sessionId, "domain");
@@ -61,28 +82,29 @@ export async function POST(
       return NextResponse.json({ done: true, nextPhase: "lab" });
     }
 
-    questionText = getQuestionAtPosition(config, pos.qi, pos.fi);
+    result = getQuestionAtPosition(config, pos.qi, pos.fi);
   } else {
     return NextResponse.json({ error: "not in Q&A phase" }, { status: 400 });
   }
 
-  if (!questionText) {
+  if (!result) {
     return NextResponse.json({ error: "invalid question position" }, { status: 500 });
   }
 
-  await setPendingQuestion(sessionId, questionText);
+  await setPendingQuestion(sessionId, result.text);
 
   let audioBase64: string | null = null;
   try {
-    const audioBuffer = await textToSpeech(questionText);
+    const audioBuffer = await textToSpeech(result.text);
     audioBase64 = audioBuffer.toString("base64");
   } catch (err) {
     console.error("[TTS] question route failed:", err);
   }
 
   return NextResponse.json({
-    question: questionText,
+    question: result.text,
     audio: audioBase64,
     phase: state.phase,
+    timeLimit: result.timeLimit,
   });
 }
