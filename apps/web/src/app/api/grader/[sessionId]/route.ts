@@ -3,12 +3,20 @@ import { prisma } from "@/lib/db";
 import { setSessionState } from "@/lib/redis";
 import { gradeSession } from "@/lib/grader";
 import { sendCompletionEmail } from "@/lib/email";
+import { requireInternalSecret } from "@/lib/session-auth";
+import { requireAdmin } from "@/lib/admin";
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { sessionId } = await params;
+
+  const internalOk = requireInternalSecret(req);
+  if (internalOk) {
+    const adminOk = await requireAdmin();
+    if (adminOk) return adminOk;
+  }
 
   const session = await prisma.session.findUnique({
     where: { id: sessionId },

@@ -17,7 +17,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       });
       if (!row) return null;
       const { user, ...session } = row;
-      return { session, user };
+      return { session, user: user as import("@auth/core/adapters").AdapterUser };
     },
     updateSession: (data) =>
       prisma.authSession.update({

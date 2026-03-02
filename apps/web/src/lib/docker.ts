@@ -18,7 +18,11 @@ export async function startKicadContainer(
 ): Promise<ContainerInfo> {
   const container = await docker.createContainer({
     Image: KICAD_IMAGE,
-    Env: [`SESSION_ID=${sessionId}`, `BACKEND_URL=${BACKEND_URL}`],
+    Env: [
+      `SESSION_ID=${sessionId}`,
+      `BACKEND_URL=${BACKEND_URL}`,
+      `INTERNAL_API_SECRET=${process.env.INTERNAL_API_SECRET || ""}`,
+    ],
     ExposedPorts: { "6080/tcp": {} },
     HostConfig: {
       PortBindings: { "6080/tcp": [{ HostPort: "" }] }, // dynamic port

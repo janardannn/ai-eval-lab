@@ -9,18 +9,28 @@ import {
 } from "@/lib/redis";
 import { startKicadContainer, waitForContainer } from "@/lib/docker";
 import { startAutoCleanup } from "@/lib/session-cleanup";
+import { requireInternalSecret } from "@/lib/session-auth";
 
 const MAX_CONTAINERS = parseInt(process.env.MAX_CONTAINERS || "3");
 
 startAutoCleanup();
 
 export async function POST(req: NextRequest) {
+  const body = await req.json();
+
+  // Internal call to provision a queued session (from end route)
+  if (body._provisionQueued) {
+    const denied = requireInternalSecret(req);
+    if (denied) return denied;
+    return provisionQueued(body._provisionQueued);
+  }
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { assessmentId } = await req.json();
+  const { assessmentId } = body;
   if (!assessmentId) {
     return NextResponse.json({ error: "missing assessmentId" }, { status: 400 });
   }
@@ -77,4 +87,34 @@ export async function POST(req: NextRequest) {
 
   await addToQueue(examSession.id);
   return NextResponse.json({ sessionId: examSession.id, status: "queued" });
+}
+
+async function provisionQueued(sessionId: string) {
+  await setSessionState(sessionId, { status: "provisioning" });
+
+  try {
+    const { containerId, containerUrl } = await startKicadContainer(sessionId);
+    const ready = await waitForContainer(containerUrl);
+
+    if (!ready) {
+      return NextResponse.json({ error: "container failed to start" }, { status: 500 });
+    }
+
+    await setContainerMapping(containerId, sessionId);
+    await setSessionState(sessionId, {
+      status: "ready",
+      phase: "intro",
+      containerId,
+      containerUrl,
+    });
+    await prisma.session.update({
+      where: { id: sessionId },
+      data: { status: "active", containerId, startedAt: new Date() },
+    });
+
+    return NextResponse.json({ sessionId, status: "ready" });
+  } catch (err) {
+    console.error("queued container provisioning failed:", err);
+    return NextResponse.json({ error: "provisioning failed" }, { status: 500 });
+  }
 }
