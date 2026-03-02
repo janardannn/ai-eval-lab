@@ -9,15 +9,16 @@ interface QuestionItem {
 }
 
 interface PhaseConfig {
-  questions: QuestionItem[];
+  questions: (QuestionItem | string)[];
 }
 
 /** Look up the current question based on position */
 function getQuestionAtPosition(config: PhaseConfig, qi: number, fi: number): string | null {
   if (qi >= config.questions.length) return null;
   const q = config.questions[qi];
-  if (fi === -1) return q.text;
-  if (q.followUps && fi < q.followUps.length) return q.followUps[fi];
+  const mainText = typeof q === "string" ? q : q.text;
+  if (fi === -1) return mainText;
+  if (typeof q !== "string" && q.followUps && fi < q.followUps.length) return q.followUps[fi];
   return null;
 }
 
