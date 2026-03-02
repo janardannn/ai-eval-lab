@@ -56,6 +56,7 @@ export default function AssessmentDetailPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [ttsProgress, setTtsProgress] = useState<{ total: number; completed: number; toGenerate: number; done?: boolean; generated?: number; failed?: number; error?: string } | null>(null);
 
   // Edit form state
   const [title, setTitle] = useState("");
@@ -205,11 +206,53 @@ export default function AssessmentDetailPage() {
       }),
     });
 
+    setTtsProgress({ total: 0, completed: 0, toGenerate: 0 });
+    setSaving(false);
+
+    try {
+      const ttsRes = await fetch(`/api/admin/assessments/${id}/generate-tts`, { method: "POST" });
+      if (!ttsRes.ok) {
+        const err = await ttsRes.json().catch(() => ({ error: `HTTP ${ttsRes.status}` }));
+        setTtsProgress({ total: 0, completed: 0, toGenerate: 0, error: err.error || `Failed (${ttsRes.status})` });
+        return;
+      }
+
+      const reader = ttsRes.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+
+      while (true) {
+        const { done: streamDone, value } = await reader.read();
+        if (streamDone) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop()!;
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const msg = JSON.parse(line);
+          if (msg.type === "start") {
+            setTtsProgress({ total: msg.total, completed: 0, toGenerate: msg.toGenerate });
+          } else if (msg.type === "progress") {
+            setTtsProgress((prev) => prev ? { ...prev, completed: msg.completed } : prev);
+          } else if (msg.type === "done") {
+            setTtsProgress({ total: msg.total, completed: msg.toGenerate || 0, toGenerate: msg.toGenerate || 0, done: true, generated: msg.generated, failed: msg.failed });
+          } else if (msg.type === "error") {
+            setTtsProgress((prev) => ({ total: prev?.total || 0, completed: 0, toGenerate: 0, error: msg.error }));
+          }
+        }
+      }
+
+      await new Promise((r) => setTimeout(r, 2500));
+      setTtsProgress(null);
+    } catch {
+      setTtsProgress({ total: 0, completed: 0, toGenerate: 0, error: "Failed to connect to TTS service" });
+      return;
+    }
+
     const res = await fetch(`/api/admin/assessments/${id}`);
     const updated = await res.json();
     setData(updated);
     setEditing(false);
-    setSaving(false);
   }
 
   async function handleRefUpload(file: File) {
@@ -277,7 +320,15 @@ export default function AssessmentDetailPage() {
     );
   }
 
-  function renderQuestionReadonly(config: PhaseConfig, label: string) {
+  function renderQuestionReadonly(config: PhaseConfig | undefined | null, label: string) {
+    if (!config?.questions) {
+      return (
+        <div className={sectionClass}>
+          <h3 className="font-semibold mb-2">{label}</h3>
+          <p className="text-foreground/40">No questions configured</p>
+        </div>
+      );
+    }
     const total = config.questions.reduce((s, q) => s + 1 + (q.followUps?.length ?? 0), 0);
     return (
       <div className={sectionClass}>
@@ -310,6 +361,52 @@ export default function AssessmentDetailPage() {
 
   return (
     <div className="max-w-3xl">
+      {ttsProgress && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-background ring-1 ring-foreground/10 rounded-lg p-8 max-w-sm w-full text-center space-y-4">
+            {ttsProgress.error ? (
+              <svg className="w-8 h-8 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : ttsProgress.done ? (
+              <svg className="w-8 h-8 mx-auto text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : null}
+            <div>
+              <p className="text-sm font-medium">
+                {ttsProgress.error ? "Audio Generation Failed" : ttsProgress.done ? "Audio Generated" : "Generating Audio"}
+              </p>
+              <p className="text-xs text-foreground/50 mt-1">
+                {ttsProgress.error
+                  ? ttsProgress.error
+                  : ttsProgress.done
+                    ? `${ttsProgress.generated} generated${ttsProgress.failed ? `, ${ttsProgress.failed} failed` : ""}`
+                    : ttsProgress.toGenerate > 0
+                      ? `${ttsProgress.completed} / ${ttsProgress.toGenerate}`
+                      : "Checking existing audio..."}
+              </p>
+            </div>
+            {!ttsProgress.error && !ttsProgress.done && (
+              <div className="w-full bg-foreground/10 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full bg-foreground rounded-full transition-all duration-500 ease-out"
+                  style={{ width: ttsProgress.toGenerate > 0 ? `${Math.round((ttsProgress.completed / ttsProgress.toGenerate) * 100)}%` : "0%" }}
+                />
+              </div>
+            )}
+            {ttsProgress.error && (
+              <button
+                onClick={() => setTtsProgress(null)}
+                className="px-4 py-1.5 text-xs rounded border border-foreground/15 hover:bg-foreground/5 transition-colors"
+              >
+                Dismiss
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <Link href="/admin/assessments" className="text-xs text-foreground/40 hover:text-foreground/60 block mb-2">&larr; Back</Link>
@@ -460,17 +557,23 @@ export default function AssessmentDetailPage() {
 
           <div className={sectionClass}>
             <h3 className="font-semibold mb-2">Lab Config</h3>
-            <p className="text-foreground/60 mb-3">{data.labConfig.problemStatement}</p>
-            <h4 className="text-xs font-semibold text-foreground/40 uppercase mb-2">Checkpoints</h4>
-            {data.labConfig.rubric.checkpoints.map((c, i) => (
-              <div key={i} className="flex justify-between items-center py-1.5 border-b border-foreground/5 last:border-0">
-                <div>
-                  <span className="font-medium">{c.name}</span>
-                  <span className="text-foreground/40 ml-2">{c.description}</span>
-                </div>
-                <span className="text-foreground/50">{c.weight}%</span>
-              </div>
-            ))}
+            {data.labConfig ? (
+              <>
+                <p className="text-foreground/60 mb-3">{data.labConfig.problemStatement}</p>
+                <h4 className="text-xs font-semibold text-foreground/40 uppercase mb-2">Checkpoints</h4>
+                {data.labConfig.rubric?.checkpoints?.map((c, i) => (
+                  <div key={i} className="flex justify-between items-center py-1.5 border-b border-foreground/5 last:border-0">
+                    <div>
+                      <span className="font-medium">{c.name}</span>
+                      <span className="text-foreground/40 ml-2">{c.description}</span>
+                    </div>
+                    <span className="text-foreground/50">{c.weight}%</span>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <p className="text-foreground/40">No lab config</p>
+            )}
           </div>
 
           <div className={sectionClass}>

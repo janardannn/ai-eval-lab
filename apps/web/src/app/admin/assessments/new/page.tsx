@@ -28,6 +28,7 @@ export default function NewAssessmentPage() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ttsProgress, setTtsProgress] = useState<{ total: number; completed: number; toGenerate: number; done?: boolean; generated?: number; failed?: number; error?: string } | null>(null);
 
   const [general, setGeneral] = useState({
     title: "",
@@ -198,7 +199,48 @@ export default function NewAssessmentPage() {
       });
     }
 
-    router.push("/admin/assessments");
+    setTtsProgress({ total: 0, completed: 0, toGenerate: 0 });
+    setSaving(false);
+
+    try {
+      const ttsRes = await fetch(`/api/admin/assessments/${created.id}/generate-tts`, { method: "POST" });
+      if (!ttsRes.ok) {
+        const err = await ttsRes.json().catch(() => ({ error: `HTTP ${ttsRes.status}` }));
+        setTtsProgress({ total: 0, completed: 0, toGenerate: 0, error: err.error || `Failed (${ttsRes.status})` });
+        return;
+      }
+
+      const reader = ttsRes.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+
+      while (true) {
+        const { done: streamDone, value } = await reader.read();
+        if (streamDone) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop()!;
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const msg = JSON.parse(line);
+          if (msg.type === "start") {
+            setTtsProgress({ total: msg.total, completed: 0, toGenerate: msg.toGenerate });
+          } else if (msg.type === "progress") {
+            setTtsProgress((prev) => prev ? { ...prev, completed: msg.completed } : prev);
+          } else if (msg.type === "done") {
+            setTtsProgress({ total: msg.total, completed: msg.toGenerate || 0, toGenerate: msg.toGenerate || 0, done: true, generated: msg.generated, failed: msg.failed });
+          } else if (msg.type === "error") {
+            setTtsProgress((prev) => ({ total: prev?.total || 0, completed: 0, toGenerate: 0, error: msg.error }));
+          }
+        }
+      }
+
+      await new Promise((r) => setTimeout(r, 2500));
+      setTtsProgress(null);
+      router.push("/admin/assessments");
+    } catch {
+      setTtsProgress({ total: 0, completed: 0, toGenerate: 0, error: "Failed to connect to TTS service" });
+    }
   }
 
   function renderQuestionList(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, label: string) {
@@ -277,6 +319,52 @@ export default function NewAssessmentPage() {
 
   return (
     <div className="max-w-3xl">
+      {ttsProgress && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-background ring-1 ring-foreground/10 rounded-lg p-8 max-w-sm w-full text-center space-y-4">
+            {ttsProgress.error ? (
+              <svg className="w-8 h-8 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : ttsProgress.done ? (
+              <svg className="w-8 h-8 mx-auto text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : null}
+            <div>
+              <p className="text-sm font-medium">
+                {ttsProgress.error ? "Audio Generation Failed" : ttsProgress.done ? "Audio Generated" : "Generating Audio"}
+              </p>
+              <p className="text-xs text-foreground/50 mt-1">
+                {ttsProgress.error
+                  ? ttsProgress.error
+                  : ttsProgress.done
+                    ? `${ttsProgress.generated} generated${ttsProgress.failed ? `, ${ttsProgress.failed} failed` : ""}`
+                    : ttsProgress.toGenerate > 0
+                      ? `${ttsProgress.completed} / ${ttsProgress.toGenerate}`
+                      : "Checking existing audio..."}
+              </p>
+            </div>
+            {!ttsProgress.error && !ttsProgress.done && (
+              <div className="w-full bg-foreground/10 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full bg-foreground rounded-full transition-all duration-500 ease-out"
+                  style={{ width: ttsProgress.toGenerate > 0 ? `${Math.round((ttsProgress.completed / ttsProgress.toGenerate) * 100)}%` : "0%" }}
+                />
+              </div>
+            )}
+            {ttsProgress.error && (
+              <button
+                onClick={() => setTtsProgress(null)}
+                className="px-4 py-1.5 text-xs rounded border border-foreground/15 hover:bg-foreground/5 transition-colors"
+              >
+                Dismiss
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <h1 className="text-2xl font-bold mb-6">New Assessment</h1>
 
       {/* Step indicator */}
