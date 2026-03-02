@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Markdown from "react-markdown";
 
 interface GradeReport {
   verdict: string;
@@ -172,23 +173,23 @@ export default function VerdictPage() {
 
         <section className="p-6 rounded-lg ring-1 ring-border bg-card shadow-lg shadow-black/[0.03] dark:shadow-black/20">
           <h2 className="text-lg font-semibold mb-4">Timeline Analysis</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-            {report.timelineAnalysis}
-          </p>
+          <div className="text-sm text-muted-foreground leading-relaxed prose prose-sm prose-invert max-w-none">
+            <Markdown>{report.timelineAnalysis}</Markdown>
+          </div>
         </section>
 
         <section className="p-6 rounded-lg ring-1 ring-border bg-card shadow-lg shadow-black/[0.03] dark:shadow-black/20">
           <h2 className="text-lg font-semibold mb-4">Q&A Evaluation</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-            {report.qaAnalysis}
-          </p>
+          <div className="text-sm text-muted-foreground leading-relaxed prose prose-sm prose-invert max-w-none">
+            <Markdown>{report.qaAnalysis}</Markdown>
+          </div>
         </section>
 
         <section className="p-6 rounded-lg ring-1 ring-border bg-card shadow-lg shadow-black/[0.03] dark:shadow-black/20">
           <h2 className="text-lg font-semibold mb-4">Overall Report</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-            {report.overallReport}
-          </p>
+          <div className="text-sm text-muted-foreground leading-relaxed prose prose-sm prose-invert max-w-none">
+            <Markdown>{report.overallReport}</Markdown>
+          </div>
         </section>
 
         <Link
