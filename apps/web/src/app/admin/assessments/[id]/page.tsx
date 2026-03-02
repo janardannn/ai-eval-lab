@@ -298,7 +298,15 @@ export default function AssessmentDetailPage() {
     );
   }
 
-  function renderQuestionReadonly(config: PhaseConfig, label: string) {
+  function renderQuestionReadonly(config: PhaseConfig | undefined | null, label: string) {
+    if (!config?.questions) {
+      return (
+        <div className={sectionClass}>
+          <h3 className="font-semibold mb-2">{label}</h3>
+          <p className="text-foreground/40">No questions configured</p>
+        </div>
+      );
+    }
     const total = config.questions.reduce((s, q) => s + 1 + (q.followUps?.length ?? 0), 0);
     return (
       <div className={sectionClass}>
