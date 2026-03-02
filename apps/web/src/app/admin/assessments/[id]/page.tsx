@@ -80,14 +80,18 @@ export default function AssessmentDetailPage() {
   }, [id]);
 
   function toDrafts(items: QuestionItem[]): QuestionDraft[] {
-    return items.map((q) => ({
-      text: typeof q === "string" ? q : q.text,
-      timeLimit: (q as { timeLimit?: number }).timeLimit || 0,
-      followUps: (q.followUps || []).map((f: string | { text: string; timeLimit?: number }) => {
-        if (typeof f === "string") return { text: f, timeLimit: 0, sameAsParent: true };
-        return { text: f.text, timeLimit: f.timeLimit || 0, sameAsParent: !f.timeLimit };
-      }),
-    }));
+    return items.map((q) => {
+      const tlSec = (q as { timeLimit?: number }).timeLimit || 0;
+      return {
+        text: typeof q === "string" ? q : q.text,
+        timeLimit: tlSec > 0 ? Math.round(tlSec / 60) : 0,
+        followUps: (q.followUps || []).map((f: string | { text: string; timeLimit?: number }) => {
+          if (typeof f === "string") return { text: f, timeLimit: 0, sameAsParent: true };
+          const fSec = f.timeLimit || 0;
+          return { text: f.text, timeLimit: fSec > 0 ? Math.round(fSec / 60) : 0, sameAsParent: !f.timeLimit };
+        }),
+      };
+    });
   }
 
   function populateForm(a: Assessment) {
@@ -114,12 +118,12 @@ export default function AssessmentDetailPage() {
         const validFollowUps = q.followUps.filter((f) => f.text.trim());
         return {
           text: q.text.trim(),
-          ...(q.timeLimit > 0 ? { timeLimit: q.timeLimit } : {}),
+          ...(q.timeLimit > 0 ? { timeLimit: q.timeLimit * 60 } : {}),
           ...(validFollowUps.length > 0
             ? {
                 followUps: validFollowUps.map((f) => ({
                   text: f.text.trim(),
-                  ...(f.sameAsParent || f.timeLimit <= 0 ? {} : { timeLimit: f.timeLimit }),
+                  ...(f.sameAsParent || f.timeLimit <= 0 ? {} : { timeLimit: f.timeLimit * 60 }),
                 })),
               }
             : {}),
@@ -214,8 +218,8 @@ export default function AssessmentDetailPage() {
                   placeholder={`Question ${i + 1}`} className={`flex-1 ${inputClass}`} />
                 <div className="flex items-center gap-1">
                   <input type="number" value={q.timeLimit || ""} onChange={(e) => updateQuestionTimeLimit(list, setList, i, Number(e.target.value))}
-                    placeholder="sec" className="w-16 p-2 border border-foreground/15 rounded bg-background text-sm text-center" />
-                  <span className="text-xs text-foreground/30">s</span>
+                    placeholder="min" className="w-16 p-2 border border-foreground/15 rounded bg-background text-sm text-center" />
+                  <span className="text-xs text-foreground/30">m</span>
                 </div>
                 <button onClick={() => removeQuestion(list, setList, i)}
                   className="text-red-500/60 hover:text-red-500 text-xs px-2">remove</button>
@@ -229,8 +233,8 @@ export default function AssessmentDetailPage() {
                     {!f.sameAsParent && (
                       <div className="flex items-center gap-1">
                         <input type="number" value={f.timeLimit || ""} onChange={(e) => updateFollowUpTimer(list, setList, i, fi, Number(e.target.value))}
-                          placeholder="sec" className="w-16 p-2 border border-foreground/10 rounded bg-background text-sm text-center" />
-                        <span className="text-xs text-foreground/30">s</span>
+                          placeholder="min" className="w-16 p-2 border border-foreground/10 rounded bg-background text-sm text-center" />
+                        <span className="text-xs text-foreground/30">m</span>
                       </div>
                     )}
                     <button onClick={() => removeFollowUp(list, setList, i, fi)}
@@ -265,7 +269,7 @@ export default function AssessmentDetailPage() {
             <div key={i} className="mb-1">
               <p className="text-foreground/60 ml-2">
                 {i + 1}. {q.text}
-                {qAny.timeLimit ? <span className="text-foreground/30 ml-2">({qAny.timeLimit}s)</span> : null}
+                {qAny.timeLimit ? <span className="text-foreground/30 ml-2">({Math.round(qAny.timeLimit / 60)}m)</span> : null}
               </p>
               {q.followUps?.map((f, fi) => {
                 const fText = typeof f === "string" ? f : (f as { text: string; timeLimit?: number }).text;
@@ -273,7 +277,7 @@ export default function AssessmentDetailPage() {
                 return (
                   <p key={fi} className="text-foreground/40 ml-8">
                     ↳ {fText}
-                    {fTime ? <span className="text-foreground/30 ml-2">({fTime}s)</span> : null}
+                    {fTime ? <span className="text-foreground/30 ml-2">({Math.round(fTime / 60)}m)</span> : null}
                   </p>
                 );
               })}

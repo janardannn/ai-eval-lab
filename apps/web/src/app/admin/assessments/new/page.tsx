@@ -117,12 +117,12 @@ export default function NewAssessmentPage() {
         const validFollowUps = q.followUps.filter((f) => f.text.trim());
         return {
           text: q.text.trim(),
-          ...(q.timeLimit > 0 ? { timeLimit: q.timeLimit } : {}),
+          ...(q.timeLimit > 0 ? { timeLimit: q.timeLimit * 60 } : {}),
           ...(validFollowUps.length > 0
             ? {
                 followUps: validFollowUps.map((f) => ({
                   text: f.text.trim(),
-                  ...(f.sameAsParent || f.timeLimit <= 0 ? {} : { timeLimit: f.timeLimit }),
+                  ...(f.sameAsParent || f.timeLimit <= 0 ? {} : { timeLimit: f.timeLimit * 60 }),
                 })),
               }
             : {}),
@@ -199,10 +199,10 @@ export default function NewAssessmentPage() {
                   type="number"
                   value={q.timeLimit || ""}
                   onChange={(e) => updateQuestionTimeLimit(list, setList, i, Number(e.target.value))}
-                  placeholder="sec"
+                  placeholder="min"
                   className="w-16 p-2 border border-foreground/15 rounded bg-background text-sm text-center"
                 />
-                <span className="text-xs text-foreground/30">s</span>
+                <span className="text-xs text-foreground/30">m</span>
               </div>
               <button onClick={() => removeQuestion(list, setList, i)}
                 className="text-red-500/60 hover:text-red-500 text-xs px-2">remove</button>
@@ -418,12 +418,12 @@ export default function NewAssessmentPage() {
               <div key={i}>
                 <p className="text-foreground/60">
                   {i + 1}. {q.text}
-                  {q.timeLimit ? <span className="text-foreground/30 ml-2">({q.timeLimit}s)</span> : null}
+                  {q.timeLimit ? <span className="text-foreground/30 ml-2">({Math.round(q.timeLimit / 60)}m)</span> : null}
                 </p>
                 {q.followUps?.map((f: { text: string; timeLimit?: number }, fi: number) => (
                   <p key={fi} className="text-foreground/40 ml-6">
                     ↳ {f.text}
-                    {f.timeLimit ? <span className="text-foreground/30 ml-2">({f.timeLimit}s)</span> : null}
+                    {f.timeLimit ? <span className="text-foreground/30 ml-2">({Math.round(f.timeLimit / 60)}m)</span> : null}
                   </p>
                 ))}
               </div>
@@ -435,12 +435,12 @@ export default function NewAssessmentPage() {
               <div key={i}>
                 <p className="text-foreground/60">
                   {i + 1}. {q.text}
-                  {q.timeLimit ? <span className="text-foreground/30 ml-2">({q.timeLimit}s)</span> : null}
+                  {q.timeLimit ? <span className="text-foreground/30 ml-2">({Math.round(q.timeLimit / 60)}m)</span> : null}
                 </p>
                 {q.followUps?.map((f: { text: string; timeLimit?: number }, fi: number) => (
                   <p key={fi} className="text-foreground/40 ml-6">
                     ↳ {f.text}
-                    {f.timeLimit ? <span className="text-foreground/30 ml-2">({f.timeLimit}s)</span> : null}
+                    {f.timeLimit ? <span className="text-foreground/30 ml-2">({Math.round(f.timeLimit / 60)}m)</span> : null}
                   </p>
                 ))}
               </div>
