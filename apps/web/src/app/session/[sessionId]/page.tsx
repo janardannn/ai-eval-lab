@@ -28,19 +28,21 @@ export default function SessionPage() {
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const cameraRequested = useRef(false);
 
+  const stopCamera = useCallback(() => {
+    setCameraStream((prev) => {
+      prev?.getTracks().forEach((t) => t.stop());
+      return null;
+    });
+  }, []);
+
   useEffect(() => {
     if (cameraRequested.current) return;
     cameraRequested.current = true;
     navigator.mediaDevices.getUserMedia({ video: true, audio: false })
       .then(setCameraStream)
       .catch(() => {});
-    return () => {
-      setCameraStream((prev) => {
-        prev?.getTracks().forEach((t) => t.stop());
-        return null;
-      });
-    };
-  }, []);
+    return stopCamera;
+  }, [stopCamera]);
 
   useHeartbeat(sessionId);
   const nudge = useNudge(sessionId, session?.phase === "lab");
@@ -57,6 +59,7 @@ export default function SessionPage() {
       setError(null);
 
       if (data.phase === "grading" || data.phase === "graded") {
+        stopCamera();
         router.push(`/session/${sessionId}/verdict`);
       }
     } catch {
@@ -72,6 +75,7 @@ export default function SessionPage() {
 
   async function handleEndExam() {
     setSubmitting(true);
+    stopCamera();
     try {
       await fetch(`/api/session/${sessionId}/end`, { method: "POST" });
       router.push(`/session/${sessionId}/verdict`);
