@@ -6,12 +6,19 @@ import { StartExamButton } from "./start-button";
 
 export const dynamic = "force-dynamic";
 
+const LAB_NAMES: Record<string, string> = {
+  kicad: "KiCad",
+  freecad: "FreeCAD",
+  blender: "Blender",
+};
+
 export default async function AssessmentDetailPage({
   params,
 }: {
-  params: Promise<{ assessmentId: string }>;
+  params: Promise<{ slug: string; assessmentId: string }>;
 }) {
-  const { assessmentId } = await params;
+  const { slug, assessmentId } = await params;
+  const labName = LAB_NAMES[slug] || slug;
 
   const assessment = await prisma.assessment.findUnique({
     where: { id: assessmentId, isActive: true },
@@ -24,7 +31,7 @@ export default async function AssessmentDetailPage({
     <main className="py-20 px-6">
       <div className="max-w-2xl mx-auto">
         <Link
-          href="/lab/kicad"
+          href={`/lab/${slug}`}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-10"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -53,7 +60,7 @@ export default async function AssessmentDetailPage({
             {Math.round(assessment.timeLimit / 60)} minutes
           </div>
           <span className="text-border">|</span>
-          <span>KiCad Environment</span>
+          <span>{labName} Environment</span>
         </div>
 
         <div className="p-6 rounded-lg ring-1 ring-border bg-card shadow-lg shadow-black/[0.03] dark:shadow-black/20 mb-10">
@@ -62,7 +69,7 @@ export default async function AssessmentDetailPage({
           </p>
         </div>
 
-        <StartExamButton assessmentId={assessment.id} />
+        <StartExamButton assessmentId={assessment.id} slug={slug} />
       </div>
     </main>
   );
