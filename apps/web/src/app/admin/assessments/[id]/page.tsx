@@ -513,17 +513,23 @@ export default function AssessmentDetailPage() {
 
           <div className={sectionClass}>
             <h3 className="font-semibold mb-2">Lab Config</h3>
-            <p className="text-foreground/60 mb-3">{data.labConfig.problemStatement}</p>
-            <h4 className="text-xs font-semibold text-foreground/40 uppercase mb-2">Checkpoints</h4>
-            {data.labConfig.rubric.checkpoints.map((c, i) => (
-              <div key={i} className="flex justify-between items-center py-1.5 border-b border-foreground/5 last:border-0">
-                <div>
-                  <span className="font-medium">{c.name}</span>
-                  <span className="text-foreground/40 ml-2">{c.description}</span>
-                </div>
-                <span className="text-foreground/50">{c.weight}%</span>
-              </div>
-            ))}
+            {data.labConfig ? (
+              <>
+                <p className="text-foreground/60 mb-3">{data.labConfig.problemStatement}</p>
+                <h4 className="text-xs font-semibold text-foreground/40 uppercase mb-2">Checkpoints</h4>
+                {data.labConfig.rubric?.checkpoints?.map((c, i) => (
+                  <div key={i} className="flex justify-between items-center py-1.5 border-b border-foreground/5 last:border-0">
+                    <div>
+                      <span className="font-medium">{c.name}</span>
+                      <span className="text-foreground/40 ml-2">{c.description}</span>
+                    </div>
+                    <span className="text-foreground/50">{c.weight}%</span>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <p className="text-foreground/40">No lab config</p>
+            )}
           </div>
 
           <div className={sectionClass}>
