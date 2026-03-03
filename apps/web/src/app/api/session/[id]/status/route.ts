@@ -28,7 +28,7 @@ export async function GET(
   }
 
   if (state.containerUrl) {
-    response.containerUrl = state.containerUrl;
+    response.containerReady = true;
   }
 
   if (state.phase === "lab" || state.phase === "intro" || state.phase === "domain") {
