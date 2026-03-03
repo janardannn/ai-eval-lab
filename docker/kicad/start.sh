@@ -1,4 +1,10 @@
 #!/bin/bash
+set -e
+
+echo "[start.sh] starting container for session=${SESSION_ID}"
+
+# Workspace for board files
+mkdir -p /workspace
 
 # Start virtual framebuffer
 Xvfb :99 -screen 0 1920x1080x24 &
@@ -17,7 +23,8 @@ sleep 1
 websockify --web /usr/share/novnc 6080 localhost:5900 &
 sleep 1
 
-# Launch KiCad pcbnew
+echo "[start.sh] launching pcbnew"
 pcbnew &
 
+echo "[start.sh] all services started, poller will auto-load via KiCad plugin system"
 wait

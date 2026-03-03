@@ -29,7 +29,14 @@ RUN sed -i 's|</head>|<style>\
 # Openbox config: auto-maximize all windows, no decorations
 RUN mkdir -p /root/.config/openbox
 COPY openbox-rc.xml /root/.config/openbox/rc.xml
-COPY kicad_poller.py /usr/share/kicad/scripting/plugins/kicad_poller.py
+
+# Install poller to both system and user plugin directories so KiCad 8 finds it
+COPY kicad_poller.py /opt/kicad_poller.py
+RUN mkdir -p /usr/share/kicad/scripting/plugins \
+    && cp /opt/kicad_poller.py /usr/share/kicad/scripting/plugins/kicad_poller.py \
+    && mkdir -p /root/.local/share/kicad/8.0/scripting/plugins \
+    && cp /opt/kicad_poller.py /root/.local/share/kicad/8.0/scripting/plugins/kicad_poller.py
+
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
