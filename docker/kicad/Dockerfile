@@ -17,8 +17,14 @@ RUN apt-get update && apt-get install -y \
     && pip3 install requests \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Hide noVNC control bar so the stream looks seamless
-RUN sed -i 's|</head>|<style>#noVNC_control_bar_anchor{display:none!important}</style></head>|' /usr/share/novnc/vnc.html
+# Strip all noVNC UI chrome — only the VNC canvas should be visible
+RUN sed -i 's|</head>|<style>\
+#noVNC_control_bar_anchor,#noVNC_control_bar,#noVNC_control_bar_handle,\
+#noVNC_status,#noVNC_transition,#noVNC_connect_dlg,#noVNC_credentials_dlg,\
+#noVNC_verify_server_dlg,#noVNC_fallback_error,#noVNC_hint_anchor,\
+#noVNC_control_bar_hint,#noVNC_mobile_buttons,#noVNC_clipboard,\
+#noVNC_settings,#noVNC_power,#noVNC_modifiers{display:none!important}\
+</style></head>|' /usr/share/novnc/vnc.html
 
 # Openbox config: auto-maximize all windows, no decorations
 RUN mkdir -p /root/.config/openbox
