@@ -17,7 +17,7 @@ export function AudioVisualizer({ analyser }: AudioVisualizerProps) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const barCount = 40;
+    const barCount = 64;
     const prevHeights = new Float32Array(barCount).fill(0);
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
@@ -25,39 +25,50 @@ export function AudioVisualizer({ analyser }: AudioVisualizerProps) {
       rafRef.current = requestAnimationFrame(draw);
       analyser!.getByteFrequencyData(dataArray);
 
-      const w = canvas!.width;
-      const h = canvas!.height;
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas!.width / dpr;
+      const h = canvas!.height / dpr;
       const centerY = h / 2;
+
+      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx!.clearRect(0, 0, w, h);
 
-      const gap = 2.5;
+      const gap = 1.5;
       const barWidth = (w - gap * (barCount - 1)) / barCount;
+      const radius = Math.min(barWidth / 2, 1.5);
 
       for (let i = 0; i < barCount; i++) {
-        // Map bar index to frequency bin — weight toward lower frequencies
-        const binIndex = Math.floor((i / barCount) * (dataArray.length * 0.7));
+        // Distribute across lower 60% of spectrum where voice lives
+        const t = i / barCount;
+        const binIndex = Math.floor(t * t * dataArray.length * 0.6);
         const raw = dataArray[binIndex] / 255;
 
-        // Smooth with previous frame for fluid motion
-        const target = Math.max(0.04, raw);
-        prevHeights[i] += (target - prevHeights[i]) * 0.3;
+        // Ease toward target — slower decay, faster attack
+        const target = Math.max(0.03, raw);
+        const speed = target > prevHeights[i] ? 0.4 : 0.12;
+        prevHeights[i] += (target - prevHeights[i]) * speed;
         const value = prevHeights[i];
 
-        const barHeight = Math.max(2, value * (h * 0.85));
+        const maxHeight = h * 0.8;
+        const barHeight = Math.max(1.5, value * maxHeight);
         const halfBar = barHeight / 2;
 
         const x = i * (barWidth + gap);
 
-        // Gradient intensity based on value
-        const alpha = 0.35 + value * 0.65;
+        const alpha = 0.25 + value * 0.75;
         ctx!.fillStyle = `rgba(99, 153, 255, ${alpha})`;
 
-        // Draw mirrored from center
         ctx!.beginPath();
-        ctx!.roundRect(x, centerY - halfBar, barWidth, barHeight, barWidth / 2);
+        ctx!.roundRect(x, centerY - halfBar, barWidth, barHeight, radius);
         ctx!.fill();
       }
     }
+
+    // Handle DPR for crisp rendering
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
 
     draw();
     return () => cancelAnimationFrame(rafRef.current);
@@ -68,9 +79,7 @@ export function AudioVisualizer({ analyser }: AudioVisualizerProps) {
   return (
     <canvas
       ref={canvasRef}
-      width={400}
-      height={64}
-      className="w-full h-16"
+      className="w-full h-12"
     />
   );
 }
