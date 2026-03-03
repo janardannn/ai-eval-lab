@@ -124,15 +124,38 @@ export default function SessionDetailPage() {
         </div>
       )}
 
-      {/* Snapshots summary */}
+      {/* Snapshots */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold mb-3">Snapshots ({data.snapshots.length})</h2>
         {data.snapshots.length > 0 ? (
-          <div className="text-sm text-foreground/50">
-            <p>First: {new Date(data.snapshots[0].timestamp * 1000).toLocaleTimeString()}</p>
-            <p>Last: {new Date(data.snapshots[data.snapshots.length - 1].timestamp * 1000).toLocaleTimeString()}</p>
-            <p>Duration: {Math.round((data.snapshots[data.snapshots.length - 1].timestamp - data.snapshots[0].timestamp) / 60)} min</p>
-          </div>
+          <>
+            <div className="text-sm text-foreground/50 mb-3">
+              <p>First: {new Date(data.snapshots[0].timestamp * 1000).toLocaleTimeString()}</p>
+              <p>Last: {new Date(data.snapshots[data.snapshots.length - 1].timestamp * 1000).toLocaleTimeString()}</p>
+              <p>Duration: {Math.round((data.snapshots[data.snapshots.length - 1].timestamp - data.snapshots[0].timestamp) / 60)} min</p>
+            </div>
+            <details className="text-sm">
+              <summary className="cursor-pointer text-foreground/50 hover:text-foreground/70">View all snapshots</summary>
+              <div className="mt-3 space-y-2 max-h-[600px] overflow-y-auto">
+                {data.snapshots.map((snap, i) => {
+                  const d = snap.data as { footprints?: unknown[]; tracks?: unknown[]; zones?: unknown[] };
+                  const elapsed = i === 0 ? 0 : Math.round(snap.timestamp - data.snapshots[0].timestamp);
+                  const mins = Math.floor(elapsed / 60);
+                  const secs = elapsed % 60;
+                  return (
+                    <details key={snap.id} className="border border-foreground/10 rounded p-2">
+                      <summary className="cursor-pointer flex items-center gap-3 text-foreground/70">
+                        <span className="font-mono text-xs text-foreground/40 w-16">T+{mins}:{String(secs).padStart(2, "0")}</span>
+                        <span>{d.footprints?.length ?? 0} footprints, {d.tracks?.length ?? 0} tracks, {d.zones?.length ?? 0} zones</span>
+                        <span className="text-xs text-foreground/30 ml-auto">{new Date(snap.timestamp * 1000).toLocaleTimeString()}</span>
+                      </summary>
+                      <pre className="mt-2 p-2 bg-foreground/5 rounded text-xs overflow-x-auto max-h-64 overflow-y-auto">{JSON.stringify(d, null, 2)}</pre>
+                    </details>
+                  );
+                })}
+              </div>
+            </details>
+          </>
         ) : (
           <p className="text-sm text-foreground/40">No snapshots recorded.</p>
         )}

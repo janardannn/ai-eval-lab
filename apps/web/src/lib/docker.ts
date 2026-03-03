@@ -6,7 +6,8 @@ const socketPath = rawHost.replace(/^unix:\/\//, "");
 const docker = new Docker({ socketPath, version: "v1.47" });
 
 const KICAD_IMAGE = process.env.KICAD_IMAGE || "ai-eval-lab-kicad";
-const BACKEND_URL = process.env.NEXT_PUBLIC_APP_URL || "http://web:8080";
+const BACKEND_URL =
+  process.env.CONTAINER_CALLBACK_URL || "http://host.docker.internal:3000";
 
 interface ContainerInfo {
   containerId: string;
@@ -25,7 +26,8 @@ export async function startKicadContainer(
     ],
     ExposedPorts: { "6080/tcp": {} },
     HostConfig: {
-      PortBindings: { "6080/tcp": [{ HostPort: "" }] }, // dynamic port
+      PortBindings: { "6080/tcp": [{ HostPort: "" }] },
+      ExtraHosts: ["host.docker.internal:host-gateway"],
     },
   });
 
