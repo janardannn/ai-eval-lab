@@ -147,18 +147,20 @@ export default function SessionPage() {
   if (session.phase === "intro" || session.phase === "domain") {
     return (
       <main className="min-h-[calc(100vh-4rem)] flex">
-        <div className="w-[30%] p-6 ring-1 ring-border bg-card/50 flex flex-col">
-          <div className="flex-1 flex flex-col items-center justify-center">
+        <div className="w-[30%] ring-1 ring-border bg-card/50 flex flex-col">
+          <div className="flex-1 flex flex-col items-center justify-center p-6">
             <WebcamPreview stream={cameraStream} />
             <div className="w-full mt-6 space-y-3">
               <MicControls recorder={recorder} />
-              <button
-                onClick={() => setShowEndConfirm(true)}
-                className="w-full h-10 text-sm font-medium rounded-lg bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98]"
-              >
-                End Exam
-              </button>
             </div>
+          </div>
+          <div className="p-4 border-t border-border">
+            <button
+              onClick={() => setShowEndConfirm(true)}
+              className="w-full h-10 text-sm font-medium rounded-lg bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98]"
+            >
+              End Exam
+            </button>
           </div>
           {showEndConfirm && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
