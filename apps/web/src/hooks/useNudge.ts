@@ -23,7 +23,6 @@ async function playAudio(base64Wav: string) {
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   try {
     const decoded = await nudgeCtx.decodeAudioData(bytes.buffer.slice(0) as ArrayBuffer);
-    if (nudgeSource) { try { nudgeSource.stop(); } catch {} }
     const source = nudgeCtx.createBufferSource();
     source.buffer = decoded;
     source.connect(nudgeCtx.destination);

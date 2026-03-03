@@ -21,6 +21,7 @@ interface PhaseConfig {
 
 interface LabConfig {
   problemStatement: string;
+  probeQuestions?: string[];
   rubric: { strictOrder?: boolean; checkpoints: Checkpoint[] };
 }
 
@@ -70,6 +71,8 @@ export default function AssessmentDetailPage() {
   const [problemStatement, setProblemStatement] = useState("");
   const [strictOrder, setStrictOrder] = useState(false);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [probeQuestions, setProbeQuestions] = useState<string[]>([]);
+  const [generatingProbes, setGeneratingProbes] = useState(false);
 
   useEffect(() => {
     fetch(`/api/admin/assessments/${id}`)
@@ -105,6 +108,7 @@ export default function AssessmentDetailPage() {
     setProblemStatement(a.labConfig.problemStatement);
     setStrictOrder(a.labConfig.rubric.strictOrder ?? false);
     setCheckpoints(a.labConfig.rubric.checkpoints.map(({ name, description, weight }) => ({ name, description, weight })));
+    setProbeQuestions(a.labConfig.probeQuestions ?? []);
   }
 
   function startEditing() { if (data) populateForm(data); setEditing(true); }
@@ -201,6 +205,7 @@ export default function AssessmentDetailPage() {
         domainConfig: { questions: filterQuestions(domainQuestions) },
         labConfig: {
           problemStatement,
+          probeQuestions: probeQuestions.filter((q) => q.trim()),
           rubric: { strictOrder, checkpoints: checkpoints.filter((c) => c.name.trim()) },
         },
       }),
@@ -529,6 +534,50 @@ export default function AssessmentDetailPage() {
                   ))}
                 </div>
               </div>
+              <div className="border border-foreground/10 rounded p-3 bg-foreground/[0.02]">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="text-sm font-semibold">Probe Questions</h4>
+                    <p className="text-xs text-foreground/40 mt-0.5">Asked every ~2.5 min during the lab to probe reasoning.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={async () => {
+                        setGeneratingProbes(true);
+                        try {
+                          const res = await fetch(`/api/admin/assessments/${id}/generate-probes`, { method: "POST" });
+                          const data = await res.json();
+                          if (data.questions) setProbeQuestions(data.questions);
+                        } catch {
+                          alert("Failed to generate probe questions");
+                        }
+                        setGeneratingProbes(false);
+                      }}
+                      disabled={generatingProbes}
+                      className="px-3 py-1.5 text-xs font-medium rounded bg-foreground text-background hover:opacity-90 disabled:opacity-50 transition-opacity"
+                    >
+                      {generatingProbes ? "Generating..." : "Generate with AI"}
+                    </button>
+                    <button onClick={() => setProbeQuestions([...probeQuestions, ""])}
+                      className="px-3 py-1.5 text-xs font-medium rounded border border-foreground/15 hover:bg-foreground/5 transition-colors">+ Add</button>
+                  </div>
+                </div>
+                {probeQuestions.length > 0 ? (
+                  <div className="space-y-2">
+                    {probeQuestions.map((q, i) => (
+                      <div key={i} className="flex gap-2">
+                        <span className="text-xs font-mono text-foreground/30 mt-2.5 w-4 shrink-0 text-right">{i + 1}</span>
+                        <input value={q} onChange={(e) => { const next = [...probeQuestions]; next[i] = e.target.value; setProbeQuestions(next); }}
+                          placeholder={`Probe question ${i + 1}`} className={`flex-1 ${inputClass}`} />
+                        <button onClick={() => setProbeQuestions(probeQuestions.filter((_, j) => j !== i))}
+                          className="text-red-500/60 hover:text-red-500 text-xs px-2">x</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-foreground/30 text-center py-3">No probe questions yet. Click &quot;Generate with AI&quot; to create them.</p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -622,6 +671,22 @@ export default function AssessmentDetailPage() {
                     ))}
                   </div>
                 </div>
+                {data.labConfig.probeQuestions && data.labConfig.probeQuestions.length > 0 && (
+                  <div className="rounded-lg border border-foreground/10 p-4">
+                    <h4 className="text-xs font-semibold text-foreground/40 uppercase tracking-wide mb-3">
+                      Probe Questions
+                      <span className="ml-2 normal-case tracking-normal font-normal">{data.labConfig.probeQuestions.length} questions</span>
+                    </h4>
+                    <div className="space-y-2">
+                      {data.labConfig.probeQuestions.map((q, i) => (
+                        <div key={i} className="flex items-start gap-3">
+                          <span className="text-xs font-mono text-foreground/30 mt-0.5 w-4 shrink-0 text-right">{i + 1}</span>
+                          <p className="text-foreground/70">{q}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-foreground/30">No lab config</p>

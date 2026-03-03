@@ -8,8 +8,8 @@ import { VNCViewer } from "@/components/VNCViewer";
 import { WebcamPreview } from "@/components/WebcamPreview";
 import { AudioVisualizer } from "@/components/AudioVisualizer";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
-import { useNudge } from "@/hooks/useNudge";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { LabProbe } from "@/components/LabProbe";
 
 interface SessionStatus {
   phase: string;
@@ -79,7 +79,6 @@ export default function SessionPage() {
   }, [stopCamera]);
 
   useHeartbeat(sessionId);
-  const nudge = useNudge(sessionId, session?.phase === "lab");
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -246,28 +245,15 @@ export default function SessionPage() {
             <div className="mb-4">
               <WebcamPreview stream={cameraStream} compact />
             </div>
-            {nudge.message && (
-              <div className="mb-4 p-3 rounded-md ring-1 ring-yellow-500/20 bg-yellow-500/10">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm text-yellow-600 dark:text-yellow-300">{nudge.message}</p>
-                  <button
-                    onClick={nudge.dismiss}
-                    className="text-yellow-500/50 hover:text-yellow-500 text-xs shrink-0"
-                  >
-                    dismiss
-                  </button>
-                </div>
-              </div>
-            )}
             {session.taskDescription && (
-              <div className="mb-6">
+              <div className="mb-4">
                 <h3 className="text-sm font-semibold mb-2">Task</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   {session.taskDescription}
                 </p>
               </div>
             )}
-            <AIProctor key="lab" sessionId={sessionId} phase="lab" onPhaseComplete={fetchStatus} />
+            <LabProbe sessionId={sessionId} recorder={recorder} />
           </div>
           <div className="p-4 border-t border-border">
             <button
