@@ -17,6 +17,25 @@ const LAB_NAMES: Record<string, string> = {
   blender: "Blender",
 };
 
+interface Question {
+  timeLimit: number;
+  followUps?: { timeLimit: number }[];
+}
+
+function getTotalTime(assessment: { timeLimit: number; introConfig: unknown; domainConfig: unknown }) {
+  let total = assessment.timeLimit;
+  for (const config of [assessment.introConfig, assessment.domainConfig]) {
+    const questions = (config as { questions?: Question[] })?.questions ?? [];
+    for (const q of questions) {
+      total += q.timeLimit;
+      if (q.followUps) {
+        for (const f of q.followUps) total += f.timeLimit;
+      }
+    }
+  }
+  return total;
+}
+
 export default async function LabAssessmentsPage({
   params,
 }: {
@@ -27,7 +46,7 @@ export default async function LabAssessmentsPage({
 
   const assessments = await prisma.assessment.findMany({
     where: { isActive: true, environment: slug },
-    select: { id: true, title: true, difficulty: true, description: true, timeLimit: true },
+    select: { id: true, title: true, difficulty: true, description: true, timeLimit: true, introConfig: true, domainConfig: true },
     orderBy: { createdAt: "asc" },
   });
 
@@ -68,7 +87,7 @@ export default async function LabAssessmentsPage({
                 </div>
 
                 {items && items.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-4">
                     {items.map((item) => (
                       <Link
                         key={item.id}
@@ -86,7 +105,7 @@ export default async function LabAssessmentsPage({
                             <circle cx="12" cy="12" r="10" />
                             <polyline points="12 6 12 12 16 14" />
                           </svg>
-                          {Math.round(item.timeLimit / 60)} min
+                          {Math.round(getTotalTime(item) / 60)} min
                         </div>
                       </Link>
                     ))}
