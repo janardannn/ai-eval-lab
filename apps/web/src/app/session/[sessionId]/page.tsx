@@ -147,18 +147,20 @@ export default function SessionPage() {
   if (session.phase === "intro" || session.phase === "domain") {
     return (
       <main className="min-h-[calc(100vh-4rem)] flex">
-        <div className="w-[30%] p-6 ring-1 ring-border bg-card/50 flex flex-col">
-          <div className="flex-1 flex flex-col items-center justify-center">
+        <div className="w-[30%] ring-1 ring-border bg-card/50 flex flex-col">
+          <div className="flex-1 flex flex-col items-center justify-center p-6">
             <WebcamPreview stream={cameraStream} />
             <div className="w-full mt-6 space-y-3">
               <MicControls recorder={recorder} />
-              <button
-                onClick={() => setShowEndConfirm(true)}
-                className="w-full h-10 text-sm font-medium rounded-lg bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98]"
-              >
-                End Exam
-              </button>
             </div>
+          </div>
+          <div className="p-4 border-t border-border">
+            <button
+              onClick={() => setShowEndConfirm(true)}
+              className="w-full h-10 text-sm font-medium rounded-lg bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98]"
+            >
+              End Exam
+            </button>
           </div>
           {showEndConfirm && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -239,39 +241,43 @@ export default function SessionPage() {
       )}
 
       <div className="flex flex-1 min-h-0">
-        <div className="w-[30%] p-4 ring-1 ring-border bg-card/50 overflow-y-auto">
-          <div className="mb-4">
-            <WebcamPreview stream={cameraStream} compact />
-          </div>
-          <button
-            onClick={() => setShowEndConfirm(true)}
-            disabled={submitting}
-            className="w-full h-10 mb-4 text-sm font-medium rounded-lg bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
-          >
-            {submitting ? "Submitting..." : "Submit & End Exam"}
-          </button>
-          {nudge.message && (
-            <div className="mb-4 p-3 rounded-md ring-1 ring-yellow-500/20 bg-yellow-500/10">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm text-yellow-600 dark:text-yellow-300">{nudge.message}</p>
-                <button
-                  onClick={nudge.dismiss}
-                  className="text-yellow-500/50 hover:text-yellow-500 text-xs shrink-0"
-                >
-                  dismiss
-                </button>
+        <div className="w-[30%] ring-1 ring-border bg-card/50 flex flex-col">
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="mb-4">
+              <WebcamPreview stream={cameraStream} compact />
+            </div>
+            {nudge.message && (
+              <div className="mb-4 p-3 rounded-md ring-1 ring-yellow-500/20 bg-yellow-500/10">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm text-yellow-600 dark:text-yellow-300">{nudge.message}</p>
+                  <button
+                    onClick={nudge.dismiss}
+                    className="text-yellow-500/50 hover:text-yellow-500 text-xs shrink-0"
+                  >
+                    dismiss
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-          {session.taskDescription && (
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold mb-2">Task</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {session.taskDescription}
-              </p>
-            </div>
-          )}
-          <AIProctor key="lab" sessionId={sessionId} phase="lab" onPhaseComplete={fetchStatus} />
+            )}
+            {session.taskDescription && (
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold mb-2">Task</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {session.taskDescription}
+                </p>
+              </div>
+            )}
+            <AIProctor key="lab" sessionId={sessionId} phase="lab" onPhaseComplete={fetchStatus} />
+          </div>
+          <div className="p-4 border-t border-border">
+            <button
+              onClick={() => setShowEndConfirm(true)}
+              disabled={submitting}
+              className="w-full h-10 text-sm font-medium rounded-lg bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {submitting ? "Submitting..." : "Submit & End Exam"}
+            </button>
+          </div>
         </div>
         <div className="w-[70%]">
           {submitting ? (

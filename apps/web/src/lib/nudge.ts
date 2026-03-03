@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { redis } from "@/lib/redis";
 import { chatCompletion } from "@/lib/ai";
 
-const STAGNATION_THRESHOLD = 300; // 5 minutes without changes
+const STAGNATION_THRESHOLD = 120; // 2 minutes without changes
 const NUDGE_COOLDOWN = 180; // 3 min between nudges
 
 interface NudgeResult {
@@ -56,7 +56,7 @@ async function generateNudge(
 
   const prompts: Record<string, string> = {
     no_activity: `The student hasn't made any changes to the PCB board yet. They may be reading the task or feeling overwhelmed. Generate a gentle, encouraging nudge that reminds them of the task without giving hints.`,
-    stagnation: `The student hasn't made changes to the PCB board for over 5 minutes. They may be stuck. Generate a gentle nudge that encourages them to continue working without revealing the solution.`,
+    stagnation: `The student hasn't made changes to the PCB board for over 2 minutes. They may be stuck. Generate a gentle nudge that encourages them to continue working without revealing the solution.`,
   };
 
   const message = await chatCompletion(
