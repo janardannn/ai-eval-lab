@@ -21,6 +21,7 @@ interface PhaseConfig {
 
 interface LabConfig {
   problemStatement: string;
+  probeQuestions?: string[];
   rubric: { strictOrder?: boolean; checkpoints: Checkpoint[] };
 }
 
@@ -70,6 +71,8 @@ export default function AssessmentDetailPage() {
   const [problemStatement, setProblemStatement] = useState("");
   const [strictOrder, setStrictOrder] = useState(false);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [probeQuestions, setProbeQuestions] = useState<string[]>([]);
+  const [generatingProbes, setGeneratingProbes] = useState(false);
 
   useEffect(() => {
     fetch(`/api/admin/assessments/${id}`)
@@ -105,6 +108,7 @@ export default function AssessmentDetailPage() {
     setProblemStatement(a.labConfig.problemStatement);
     setStrictOrder(a.labConfig.rubric.strictOrder ?? false);
     setCheckpoints(a.labConfig.rubric.checkpoints.map(({ name, description, weight }) => ({ name, description, weight })));
+    setProbeQuestions(a.labConfig.probeQuestions ?? []);
   }
 
   function startEditing() { if (data) populateForm(data); setEditing(true); }
@@ -201,6 +205,7 @@ export default function AssessmentDetailPage() {
         domainConfig: { questions: filterQuestions(domainQuestions) },
         labConfig: {
           problemStatement,
+          probeQuestions: probeQuestions.filter((q) => q.trim()),
           rubric: { strictOrder, checkpoints: checkpoints.filter((c) => c.name.trim()) },
         },
       }),
@@ -529,6 +534,46 @@ export default function AssessmentDetailPage() {
                   ))}
                 </div>
               </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-foreground/50">
+                    Probe Questions <span className="text-foreground/30">({probeQuestions.filter((q) => q.trim()).length})</span>
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={async () => {
+                        setGeneratingProbes(true);
+                        try {
+                          const res = await fetch(`/api/admin/assessments/${id}/generate-probes`, { method: "POST" });
+                          const data = await res.json();
+                          if (data.questions) setProbeQuestions(data.questions);
+                        } catch {
+                          alert("Failed to generate probe questions");
+                        }
+                        setGeneratingProbes(false);
+                      }}
+                      disabled={generatingProbes}
+                      className="text-sm text-foreground/40 hover:text-foreground/70 disabled:opacity-50"
+                    >
+                      {generatingProbes ? "Generating..." : "Generate Probes"}
+                    </button>
+                    <button onClick={() => setProbeQuestions([...probeQuestions, ""])}
+                      className="text-sm text-foreground/40 hover:text-foreground/70">+ Add</button>
+                  </div>
+                </div>
+                <p className="text-xs text-foreground/30 mb-2">Questions asked periodically during the lab to probe the student&apos;s reasoning.</p>
+                <div className="space-y-2">
+                  {probeQuestions.map((q, i) => (
+                    <div key={i} className="flex gap-2">
+                      <span className="text-xs font-mono text-foreground/30 mt-2.5 w-4 shrink-0 text-right">{i + 1}</span>
+                      <input value={q} onChange={(e) => { const next = [...probeQuestions]; next[i] = e.target.value; setProbeQuestions(next); }}
+                        placeholder={`Probe question ${i + 1}`} className={`flex-1 ${inputClass}`} />
+                      <button onClick={() => setProbeQuestions(probeQuestions.filter((_, j) => j !== i))}
+                        className="text-red-500/60 hover:text-red-500 text-xs px-2">x</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -622,6 +667,22 @@ export default function AssessmentDetailPage() {
                     ))}
                   </div>
                 </div>
+                {data.labConfig.probeQuestions && data.labConfig.probeQuestions.length > 0 && (
+                  <div className="rounded-lg border border-foreground/10 p-4">
+                    <h4 className="text-xs font-semibold text-foreground/40 uppercase tracking-wide mb-3">
+                      Probe Questions
+                      <span className="ml-2 normal-case tracking-normal font-normal">{data.labConfig.probeQuestions.length} questions</span>
+                    </h4>
+                    <div className="space-y-2">
+                      {data.labConfig.probeQuestions.map((q, i) => (
+                        <div key={i} className="flex items-start gap-3">
+                          <span className="text-xs font-mono text-foreground/30 mt-0.5 w-4 shrink-0 text-right">{i + 1}</span>
+                          <p className="text-foreground/70">{q}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-foreground/30">No lab config</p>

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionState, setPendingQuestion } from "@/lib/redis";
+import { prisma } from "@/lib/db";
 import { checkForProbe } from "@/lib/probe";
-import { textToSpeech } from "@/lib/tts";
+import { textToSpeech, questionTextHash } from "@/lib/tts";
 import { requireSessionOwner } from "@/lib/session-auth";
 
 export async function GET(
@@ -29,8 +30,25 @@ export async function GET(
 
   let audioBase64: string | null = null;
   try {
-    const audioBuffer = await textToSpeech(result.question);
-    audioBase64 = audioBuffer.toString("base64");
+    const cached = result.assessmentId
+      ? await prisma.questionAudio.findUnique({
+          where: {
+            assessmentId_textHash: {
+              assessmentId: result.assessmentId,
+              textHash: questionTextHash(result.question),
+            },
+          },
+          select: { audio: true },
+        })
+      : null;
+
+    if (cached) {
+      audioBase64 = Buffer.from(cached.audio).toString("base64");
+    } else {
+      console.warn("[TTS] No pre-generated probe audio, generating on-the-fly:", result.question.substring(0, 60));
+      const audioBuffer = await textToSpeech(result.question);
+      audioBase64 = audioBuffer.toString("base64");
+    }
   } catch (err) {
     console.error("[TTS] probe route failed:", err);
   }

@@ -68,7 +68,7 @@ export async function POST(
       try {
         const assessment = await prisma.assessment.findUnique({
           where: { id },
-          select: { introConfig: true, domainConfig: true },
+          select: { introConfig: true, domainConfig: true, labConfig: true },
         });
 
         if (!assessment) {
@@ -79,7 +79,9 @@ export async function POST(
 
         const introTexts = collectTexts(assessment.introConfig as unknown as PhaseConfig | null);
         const domainTexts = collectTexts(assessment.domainConfig as unknown as PhaseConfig | null);
-        const allTexts = dedup([...introTexts, ...domainTexts]);
+        const labConfig = assessment.labConfig as Record<string, unknown> | null;
+        const probeTexts = (labConfig?.probeQuestions as string[] | undefined) ?? [];
+        const allTexts = dedup([...introTexts, ...domainTexts, ...probeTexts]);
 
         if (allTexts.length === 0) {
           send({ type: "done", total: 0, generated: 0, cached: 0, deleted: 0, failed: 0 });
