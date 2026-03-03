@@ -534,12 +534,13 @@ export default function AssessmentDetailPage() {
                   ))}
                 </div>
               </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs text-foreground/50">
-                    Probe Questions <span className="text-foreground/30">({probeQuestions.filter((q) => q.trim()).length})</span>
-                  </label>
-                  <div className="flex items-center gap-3">
+              <div className="border border-foreground/10 rounded p-3 bg-foreground/[0.02]">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="text-sm font-semibold">Probe Questions</h4>
+                    <p className="text-xs text-foreground/40 mt-0.5">Asked every ~2.5 min during the lab to probe reasoning.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={async () => {
                         setGeneratingProbes(true);
@@ -553,26 +554,29 @@ export default function AssessmentDetailPage() {
                         setGeneratingProbes(false);
                       }}
                       disabled={generatingProbes}
-                      className="text-sm text-foreground/40 hover:text-foreground/70 disabled:opacity-50"
+                      className="px-3 py-1.5 text-xs font-medium rounded bg-foreground text-background hover:opacity-90 disabled:opacity-50 transition-opacity"
                     >
-                      {generatingProbes ? "Generating..." : "Generate Probes"}
+                      {generatingProbes ? "Generating..." : "Generate with AI"}
                     </button>
                     <button onClick={() => setProbeQuestions([...probeQuestions, ""])}
-                      className="text-sm text-foreground/40 hover:text-foreground/70">+ Add</button>
+                      className="px-3 py-1.5 text-xs font-medium rounded border border-foreground/15 hover:bg-foreground/5 transition-colors">+ Add</button>
                   </div>
                 </div>
-                <p className="text-xs text-foreground/30 mb-2">Questions asked periodically during the lab to probe the student&apos;s reasoning.</p>
-                <div className="space-y-2">
-                  {probeQuestions.map((q, i) => (
-                    <div key={i} className="flex gap-2">
-                      <span className="text-xs font-mono text-foreground/30 mt-2.5 w-4 shrink-0 text-right">{i + 1}</span>
-                      <input value={q} onChange={(e) => { const next = [...probeQuestions]; next[i] = e.target.value; setProbeQuestions(next); }}
-                        placeholder={`Probe question ${i + 1}`} className={`flex-1 ${inputClass}`} />
-                      <button onClick={() => setProbeQuestions(probeQuestions.filter((_, j) => j !== i))}
-                        className="text-red-500/60 hover:text-red-500 text-xs px-2">x</button>
-                    </div>
-                  ))}
-                </div>
+                {probeQuestions.length > 0 ? (
+                  <div className="space-y-2">
+                    {probeQuestions.map((q, i) => (
+                      <div key={i} className="flex gap-2">
+                        <span className="text-xs font-mono text-foreground/30 mt-2.5 w-4 shrink-0 text-right">{i + 1}</span>
+                        <input value={q} onChange={(e) => { const next = [...probeQuestions]; next[i] = e.target.value; setProbeQuestions(next); }}
+                          placeholder={`Probe question ${i + 1}`} className={`flex-1 ${inputClass}`} />
+                        <button onClick={() => setProbeQuestions(probeQuestions.filter((_, j) => j !== i))}
+                          className="text-red-500/60 hover:text-red-500 text-xs px-2">x</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-foreground/30 text-center py-3">No probe questions yet. Click &quot;Generate with AI&quot; to create them.</p>
+                )}
               </div>
             </div>
           </div>
