@@ -83,6 +83,8 @@ def poll_loop():
         return
 
     prev_hash = None
+    last_post_time = 0
+    heartbeat_interval = 30
     post_url = "%s/api/poller/%s/events" % (BACKEND_URL, SESSION_ID)
     headers = {"x-internal-secret": INTERNAL_API_SECRET, "Content-Type": "application/json"}
     consecutive_errors = 0
@@ -96,16 +98,21 @@ def poll_loop():
 
             current = snapshot(board)
             current_hash = hash(json.dumps(current, sort_keys=True))
+            now = time.time()
 
-            if current_hash != prev_hash:
+            changed = current_hash != prev_hash
+            heartbeat_due = (now - last_post_time) >= heartbeat_interval
+
+            if changed or heartbeat_due:
                 resp = requests.post(
                     post_url,
-                    json={"timestamp": time.time(), "snapshot": current},
+                    json={"timestamp": now, "snapshot": current},
                     headers=headers,
                     timeout=5,
                 )
                 if resp.status_code == 200:
                     prev_hash = current_hash
+                    last_post_time = now
                     consecutive_errors = 0
                 else:
                     consecutive_errors += 1
