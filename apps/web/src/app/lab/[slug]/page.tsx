@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { difficultyColors } from "@/lib/constants";
+import { getTotalTime } from "@/lib/assessment-time";
 
 export const dynamic = "force-dynamic";
 
@@ -16,25 +17,6 @@ const LAB_NAMES: Record<string, string> = {
   freecad: "FreeCAD",
   blender: "Blender",
 };
-
-interface Question {
-  timeLimit: number;
-  followUps?: { timeLimit: number }[];
-}
-
-function getTotalTime(assessment: { timeLimit: number; introConfig: unknown; domainConfig: unknown }) {
-  let total = assessment.timeLimit;
-  for (const config of [assessment.introConfig, assessment.domainConfig]) {
-    const questions = (config as { questions?: Question[] })?.questions ?? [];
-    for (const q of questions) {
-      total += q.timeLimit;
-      if (q.followUps) {
-        for (const f of q.followUps) total += f.timeLimit;
-      }
-    }
-  }
-  return total;
-}
 
 export default async function LabAssessmentsPage({
   params,
