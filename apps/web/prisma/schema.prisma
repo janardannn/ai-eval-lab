@@ -95,6 +95,10 @@ model Session {
   endedAt       DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([assessmentId])
+  @@index([status])
 }
 
 model Snapshot {
