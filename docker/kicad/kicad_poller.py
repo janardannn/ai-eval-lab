@@ -1,11 +1,10 @@
 import threading
 import time
 import os
-import sys
 import json
 
-_STARTED = False
-_LOCK = threading.Lock()
+LOCKFILE = "/tmp/poller.lock"
+LOG_FILE = "/tmp/poller.log"
 
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://host.docker.internal:3000")
 SESSION_ID = os.environ.get("SESSION_ID", "unknown")
@@ -14,7 +13,12 @@ INTERNAL_API_SECRET = os.environ.get("INTERNAL_API_SECRET", "")
 
 
 def log(msg):
-    print(f"[kicad_poller] {msg}", flush=True)
+    line = "[kicad_poller] %s" % msg
+    try:
+        with open(LOG_FILE, "a") as f:
+            f.write(line + "\n")
+    except Exception:
+        pass
 
 
 def snapshot(board):
@@ -61,18 +65,17 @@ def poll_loop():
     import pcbnew
     import requests
 
-    log(f"poll_loop started — session={SESSION_ID}, backend={BACKEND_URL}, interval={POLL_INTERVAL}s")
+    log("poll_loop started -- session=%s, backend=%s, interval=%ds" % (SESSION_ID, BACKEND_URL, POLL_INTERVAL))
 
-    # Wait for pcbnew to have a board ready
     board = None
     for attempt in range(60):
         try:
             board = pcbnew.GetBoard()
             if board is not None:
-                log(f"board acquired after {attempt + 1} attempts")
+                log("board acquired after %d attempts" % (attempt + 1))
                 break
         except Exception as e:
-            log(f"GetBoard() attempt {attempt + 1} failed: {e}")
+            log("GetBoard() attempt %d failed: %s" % (attempt + 1, e))
         time.sleep(2)
 
     if board is None:
@@ -80,7 +83,7 @@ def poll_loop():
         return
 
     prev_hash = None
-    post_url = f"{BACKEND_URL}/api/poller/{SESSION_ID}/events"
+    post_url = "%s/api/poller/%s/events" % (BACKEND_URL, SESSION_ID)
     headers = {"x-internal-secret": INTERNAL_API_SECRET, "Content-Type": "application/json"}
     consecutive_errors = 0
 
@@ -106,26 +109,27 @@ def poll_loop():
                     consecutive_errors = 0
                 else:
                     consecutive_errors += 1
-                    log(f"POST failed: {resp.status_code} {resp.text[:200]}")
+                    log("POST failed: %d %s" % (resp.status_code, resp.text[:200]))
         except requests.exceptions.ConnectionError:
             consecutive_errors += 1
             if consecutive_errors % 10 == 1:
-                log(f"connection error (attempt {consecutive_errors}): cannot reach {BACKEND_URL}")
+                log("connection error (attempt %d): cannot reach %s" % (consecutive_errors, BACKEND_URL))
         except Exception as e:
             consecutive_errors += 1
             if consecutive_errors % 10 == 1:
-                log(f"error (attempt {consecutive_errors}): {e}")
+                log("error (attempt %d): %s" % (consecutive_errors, e))
 
         time.sleep(POLL_INTERVAL)
 
 
 def start():
-    global _STARTED
-    with _LOCK:
-        if _STARTED:
-            log("already running, skipping duplicate start")
-            return
-        _STARTED = True
+    try:
+        fd = os.open(LOCKFILE, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, b"%d" % os.getpid())
+        os.close(fd)
+    except FileExistsError:
+        log("already running, skipping duplicate start")
+        return
 
     log("starting background poller thread")
     t = threading.Thread(target=poll_loop, daemon=True)
