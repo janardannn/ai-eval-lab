@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { difficultyColors } from "@/lib/constants";
+import { getTotalTime } from "@/lib/assessment-time";
 import { StartExamButton } from "./start-button";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export default async function AssessmentDetailPage({
 
   const assessment = await prisma.assessment.findUnique({
     where: { id: assessmentId, isActive: true },
-    select: { id: true, title: true, difficulty: true, description: true, timeLimit: true },
+    select: { id: true, title: true, difficulty: true, description: true, timeLimit: true, introConfig: true, domainConfig: true },
   });
 
   if (!assessment) notFound();
@@ -57,7 +58,7 @@ export default async function AssessmentDetailPage({
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
-            {Math.round(assessment.timeLimit / 60)} minutes
+            {Math.round(getTotalTime(assessment) / 60)} minutes
           </div>
           <span className="text-border">|</span>
           <span>{labName} Environment</span>
