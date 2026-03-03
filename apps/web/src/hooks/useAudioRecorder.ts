@@ -151,10 +151,11 @@ export function useAudioRecorder(): AudioRecorderState {
     teardown(mediaRecorderRef, recognitionRef);
     setAnalyser(null);
     setLiveTranscript("");
+    setMicError(null);
     chunksRef.current = [];
-    // Small delay for browser to release mic before re-acquiring
-    setTimeout(() => { startRecording(); }, 100);
-  }, [startRecording]);
+    isRecordingRef.current = false;
+    setIsRecording(false);
+  }, []);
 
   const stopRecording = useCallback(async (): Promise<Blob | undefined> => {
     const recorder = mediaRecorderRef.current;
