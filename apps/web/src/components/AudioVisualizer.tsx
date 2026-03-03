@@ -17,7 +17,7 @@ export function AudioVisualizer({ analyser }: AudioVisualizerProps) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const barCount = 64;
+    const barCount = 96;
     const prevHeights = new Float32Array(barCount).fill(0);
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
@@ -33,9 +33,9 @@ export function AudioVisualizer({ analyser }: AudioVisualizerProps) {
       ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx!.clearRect(0, 0, w, h);
 
-      const gap = 1.5;
+      const gap = 1;
       const barWidth = (w - gap * (barCount - 1)) / barCount;
-      const radius = Math.min(barWidth / 2, 1.5);
+      const radius = Math.min(barWidth / 2, 1);
 
       for (let i = 0; i < barCount; i++) {
         // Distribute across lower 60% of spectrum where voice lives
