@@ -17,6 +17,9 @@ RUN apt-get update && apt-get install -y \
     && pip3 install requests \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Hide noVNC control bar so the stream looks seamless
+RUN sed -i 's|</head>|<style>#noVNC_control_bar_anchor{display:none!important}</style></head>|' /usr/share/novnc/vnc.html
+
 # Openbox config: auto-maximize all windows, no decorations
 RUN mkdir -p /root/.config/openbox
 COPY openbox-rc.xml /root/.config/openbox/rc.xml
