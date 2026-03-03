@@ -14,7 +14,7 @@ import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 interface SessionStatus {
   phase: string;
   status: string;
-  containerUrl?: string;
+  containerReady?: boolean;
   timeLimit?: number;
   taskDescription?: string;
   hasReferenceMaterial?: boolean;
@@ -279,8 +279,8 @@ export default function SessionPage() {
               <div className="w-5 h-5 border-2 border-border border-t-accent rounded-full animate-spin" />
               <p className="text-muted-foreground">Submitting your work...</p>
             </div>
-          ) : session.containerUrl ? (
-            <VNCViewer url={`${session.containerUrl}/vnc.html`} />
+          ) : session.containerReady ? (
+            <VNCViewer url={`/api/session/${sessionId}/vnc`} />
           ) : (
             <div className="flex items-center justify-center h-full">
               <p className="text-muted-foreground">Waiting for container...</p>
