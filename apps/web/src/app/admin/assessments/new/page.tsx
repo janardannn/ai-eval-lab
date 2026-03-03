@@ -54,6 +54,8 @@ export default function NewAssessmentPage() {
   const [checkpoints, setCheckpoints] = useState<CheckpointDraft[]>([
     { name: "", description: "", weight: 0 },
   ]);
+  const [probeQuestions, setProbeQuestions] = useState<string[]>([]);
+  const [generatingProbes, setGeneratingProbes] = useState(false);
 
   function updateQuestion(list: QuestionDraft[], setList: (v: QuestionDraft[]) => void, i: number, text: string) {
     const next = [...list];
@@ -171,6 +173,7 @@ export default function NewAssessmentPage() {
       domainConfig: { questions: filterQuestions(domainQuestions) },
       labConfig: {
         problemStatement,
+        probeQuestions: probeQuestions.filter((q) => q.trim()),
         rubric: { strictOrder, checkpoints: checkpoints.filter((c) => c.name.trim()) },
       },
     };
@@ -509,6 +512,60 @@ export default function NewAssessmentPage() {
               ))}
             </div>
           </div>
+          <div className="border border-foreground/10 rounded p-3 bg-foreground/[0.02]">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h4 className="text-sm font-semibold">Probe Questions</h4>
+                <p className="text-xs text-foreground/40 mt-0.5">Asked every ~2.5 min during the lab to probe reasoning.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    setGeneratingProbes(true);
+                    try {
+                      const res = await fetch("/api/admin/assessments/new/generate-probes", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          title: general.title,
+                          description: general.description,
+                          timeLimit: general.timeLimit,
+                          problemStatement,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (data.questions) setProbeQuestions(data.questions);
+                    } catch {
+                      alert("Failed to generate probe questions");
+                    }
+                    setGeneratingProbes(false);
+                  }}
+                  disabled={generatingProbes || !general.title.trim()}
+                  className="px-3 py-1.5 text-xs font-medium rounded bg-foreground text-background hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
+                  {generatingProbes ? "Generating..." : "Generate with AI"}
+                </button>
+                <button onClick={() => setProbeQuestions([...probeQuestions, ""])}
+                  className="px-3 py-1.5 text-xs font-medium rounded border border-foreground/15 hover:bg-foreground/5 transition-colors">+ Add</button>
+              </div>
+            </div>
+            {probeQuestions.length > 0 ? (
+              <div className="space-y-2">
+                {probeQuestions.map((q, i) => (
+                  <div key={i} className="flex gap-2">
+                    <span className="text-xs font-mono text-foreground/30 mt-2.5 w-4 shrink-0 text-right">{i + 1}</span>
+                    <input value={q} onChange={(e) => { const next = [...probeQuestions]; next[i] = e.target.value; setProbeQuestions(next); }}
+                      placeholder={`Probe question ${i + 1}`}
+                      className="flex-1 p-2 border border-foreground/15 rounded bg-background text-sm" />
+                    <button onClick={() => setProbeQuestions(probeQuestions.filter((_, j) => j !== i))}
+                      className="text-red-500/60 hover:text-red-500 text-xs px-2">x</button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-foreground/30 text-center py-3">No probe questions yet. Click &quot;Generate with AI&quot; to create them.</p>
+            )}
+          </div>
         </div>
       )}
 
@@ -562,6 +619,14 @@ export default function NewAssessmentPage() {
             {checkpoints.filter(c => c.name.trim()).map((c, i) => (
               <p key={i} className="text-foreground/60">{c.name} — {c.weight}%</p>
             ))}
+            {probeQuestions.filter(q => q.trim()).length > 0 && (
+              <div className="mt-2 pt-2 border-t border-foreground/5">
+                <p className="text-foreground/40 text-xs mb-1">{probeQuestions.filter(q => q.trim()).length} probe questions</p>
+                {probeQuestions.filter(q => q.trim()).map((q, i) => (
+                  <p key={i} className="text-foreground/50 text-xs">{i + 1}. {q}</p>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

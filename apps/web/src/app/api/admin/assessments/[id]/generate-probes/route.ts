@@ -5,12 +5,8 @@ import { jsonCompletion } from "@/lib/ai";
 
 const PROBE_INTERVAL = 150; // ~2.5 min between probes
 
-interface LabConfig {
-  problemStatement?: string;
-}
-
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const adminCheck = await requireAdmin();
@@ -18,17 +14,37 @@ export async function POST(
 
   const { id } = await params;
 
-  const assessment = await prisma.assessment.findUnique({
-    where: { id },
-    select: { title: true, description: true, timeLimit: true, labConfig: true },
-  });
+  let title: string;
+  let description: string;
+  let timeLimit: number;
+  let problemStatement: string | undefined;
 
-  if (!assessment) {
-    return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
+  // Accept body data for creation flow (id === "new") or use DB
+  const contentType = req.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    const body = await req.json();
+    title = body.title;
+    description = body.description;
+    timeLimit = body.timeLimit;
+    problemStatement = body.problemStatement;
+  } else {
+    const assessment = await prisma.assessment.findUnique({
+      where: { id },
+      select: { title: true, description: true, timeLimit: true, labConfig: true },
+    });
+
+    if (!assessment) {
+      return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
+    }
+
+    title = assessment.title;
+    description = assessment.description;
+    timeLimit = assessment.timeLimit;
+    const labConfig = assessment.labConfig as Record<string, unknown> | null;
+    problemStatement = labConfig?.problemStatement as string | undefined;
   }
 
-  const labConfig = assessment.labConfig as unknown as LabConfig | null;
-  const count = Math.max(3, Math.floor(assessment.timeLimit / PROBE_INTERVAL));
+  const count = Math.max(3, Math.floor(timeLimit / PROBE_INTERVAL));
 
   const questions = await jsonCompletion<{ questions: string[] }>(
     `You generate probing questions for an AI-proctored practical engineering exam. These questions are asked periodically during the hands-on lab to make the student explain their thinking process, justify design decisions, and describe what they are doing.
@@ -41,7 +57,7 @@ Rules:
 - Early questions should be more general (what are you working on, what's your approach), later ones more specific (why did you choose this, what challenge are you facing)
 - Questions should work for any student taking this assessment
 - Return a JSON object with a "questions" array of strings`,
-    `Assessment: ${assessment.title}\nDescription: ${assessment.description}${labConfig?.problemStatement ? `\nProblem Statement: ${labConfig.problemStatement}` : ""}\nLab Duration: ${Math.round(assessment.timeLimit / 60)} minutes`
+    `Assessment: ${title}\nDescription: ${description}${problemStatement ? `\nProblem Statement: ${problemStatement}` : ""}\nLab Duration: ${Math.round(timeLimit / 60)} minutes`
   );
 
   return NextResponse.json({ questions: questions.questions });
