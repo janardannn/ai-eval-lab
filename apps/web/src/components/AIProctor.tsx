@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import type { AudioRecorderState } from "@/hooks/useAudioRecorder";
 
 interface AIProctorProps {
   sessionId: string;
   phase: "intro" | "domain" | "lab";
   onPhaseComplete: () => void | Promise<void>;
-  onEndExam?: () => void;
+  recorder?: AudioRecorderState;
 }
 
 let audioCtx: AudioContext | null = null;
@@ -41,19 +42,14 @@ function playAudioDelayed(base64Wav: string) {
   });
 }
 
-export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIProctorProps) {
+export function AIProctor({ sessionId, phase, onPhaseComplete, recorder }: AIProctorProps) {
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [questionTimeLeft, setQuestionTimeLeft] = useState(0);
   const [readingTimeLeft, setReadingTimeLeft] = useState(0);
   const questionTimeLimitRef = useRef(0);
   const readingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isRecordingRef = useRef(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
   const busyRef = useRef(false);
   const fetchingRef = useRef(false);
   const mountedRef = useRef(false);
@@ -91,7 +87,6 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
     questionTimeLimitRef.current = seconds;
     if (seconds <= 0) { setQuestionTimeLeft(0); setReadingTimeLeft(0); return; }
 
-    // Reading time: ~1s per 12 chars, min 5s, max 15s
     const readSec = Math.min(15, Math.max(5, Math.round(questionText.length / 12)));
     setReadingTimeLeft(readSec);
     setQuestionTimeLeft(seconds);
@@ -154,19 +149,14 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
         let body: BodyInit;
         let headers: HeadersInit | undefined;
 
-        if (isRecordingRef.current && mediaRecorderRef.current?.state === "recording") {
-          const blob = await new Promise<Blob>((resolve) => {
-            const recorder = mediaRecorderRef.current!;
-            recorder.onstop = () => {
-              const b = new Blob(chunksRef.current, { type: "audio/webm" });
-              recorder.stream.getTracks().forEach((t) => t.stop());
-              resolve(b);
-            };
-            recorder.stop();
-          });
-          isRecordingRef.current = false;
-          setIsRecording(false);
-          body = blob;
+        if (recorder?.isRecordingRef.current && recorder.mediaRecorderRef.current?.state === "recording") {
+          const blob = await recorder.stopRecording();
+          if (blob) {
+            body = blob;
+          } else {
+            headers = { "Content-Type": "application/json" };
+            body = JSON.stringify({ transcript: transcript || "(no response — time expired)" });
+          }
         } else {
           headers = { "Content-Type": "application/json" };
           body = JSON.stringify({ transcript: transcript || "(no response — time expired)" });
@@ -186,78 +176,19 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questionTimeLeft]);
 
-  async function startRecording() {
-    if (busyRef.current) return;
-    stopAudio();
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      chunksRef.current = [];
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      recorder.start();
-      mediaRecorderRef.current = recorder;
-      isRecordingRef.current = true;
-      setIsRecording(true);
-    } catch {
-      // Mic access denied
-    }
-  }
-
-  async function stopRecording() {
-    const recorder = mediaRecorderRef.current;
-    if (!recorder || recorder.state !== "recording") return;
-
-    return new Promise<Blob>((resolve) => {
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        recorder.stream.getTracks().forEach((t) => t.stop());
-        resolve(blob);
-      };
-      recorder.stop();
-      isRecordingRef.current = false;
-      setIsRecording(false);
-    });
-  }
-
-  async function handleSubmitAudio() {
-    if (!currentQuestion || busyRef.current) return;
+  async function handleSubmitVoice() {
+    if (!currentQuestion || busyRef.current || !recorder) return;
     busyRef.current = true;
     stopAudio();
-    const blob = await stopRecording();
+    const blob = await recorder.stopRecording();
     if (!blob) { busyRef.current = false; return; }
 
     setIsLoading(true);
+    setTranscript("");
     try {
       const res = await fetch(`/api/ai/${sessionId}/answer`, {
         method: "POST",
         body: blob,
-      });
-      const data = await res.json();
-      await handleAnswerResponse(data);
-    } finally {
-      setIsLoading(false);
-      busyRef.current = false;
-    }
-  }
-
-  async function handleSubmitText() {
-    if (!transcript.trim() || !currentQuestion || busyRef.current) return;
-    busyRef.current = true;
-    stopAudio();
-
-    const answer = transcript;
-    setIsLoading(true);
-    setTranscript("");
-
-    try {
-      const res = await fetch(`/api/ai/${sessionId}/answer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: answer }),
       });
       const data = await res.json();
       await handleAnswerResponse(data);
@@ -276,6 +207,15 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
     }
   }
 
+  // Sync live STT transcript into textarea while recording
+  useEffect(() => {
+    if (recorder?.isRecording && recorder.liveTranscript) {
+      setTranscript(recorder.liveTranscript);
+    }
+  }, [recorder?.isRecording, recorder?.liveTranscript]);
+
+  const handleExternalAudioSubmit = recorder ? handleSubmitVoice : undefined;
+
   return (
     <div className="flex flex-col h-full">
       <div className="mb-6 flex items-center justify-between">
@@ -290,43 +230,7 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
             <p className="text-xs text-muted-foreground">AI Proctor</p>
           </div>
         </div>
-        {onEndExam && (
-          <button
-            onClick={() => setShowEndConfirm(true)}
-            className="h-8 px-3 text-xs font-medium rounded-md ring-1 ring-destructive/30 text-destructive hover:bg-destructive/10 transition-all duration-75 active:scale-[0.98]"
-          >
-            End Exam
-          </button>
-        )}
       </div>
-
-      {showEndConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-card ring-1 ring-border rounded-lg p-6 max-w-sm mx-4 shadow-2xl">
-            <h3 className="text-lg font-semibold mb-2">End Exam?</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              This will end your exam immediately. Your progress so far will be graded. This cannot be undone.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowEndConfirm(false)}
-                className="h-9 px-4 text-sm font-medium rounded-md ring-1 ring-border hover:bg-muted transition-all duration-75 active:scale-[0.98]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setShowEndConfirm(false);
-                  onEndExam?.();
-                }}
-                className="h-9 px-4 text-sm font-medium rounded-md bg-destructive text-white hover:brightness-110 transition-all duration-75 active:scale-[0.98]"
-              >
-                End Exam
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {currentQuestion && (
         <div className="flex-1 flex flex-col justify-center mb-4">
@@ -368,50 +272,49 @@ export function AIProctor({ sessionId, phase, onPhaseComplete, onEndExam }: AIPr
 
           <textarea
             value={transcript}
-            onChange={(e) => { if (!busyRef.current) setTranscript(e.target.value); }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmitText();
-              }
-            }}
+            readOnly
             disabled={isLoading || readingTimeLeft > 0}
-            placeholder={readingTimeLeft > 0 ? "Read the question first..." : "Type your answer or use the mic..."}
-            className="w-full p-3 ring-1 ring-border rounded-md bg-muted text-sm resize-none h-24 focus:outline-none focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            placeholder={readingTimeLeft > 0 ? "Read the question first..." : recorder?.isRecording ? "Listening..." : "Press record to answer..."}
+            className="w-full p-3 ring-1 ring-border rounded-md bg-muted text-sm resize-none h-24 focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-default"
           />
 
-          <div className="flex gap-3 mt-3">
-            <button
-              onClick={handleSubmitText}
-              disabled={!transcript.trim() || isLoading || readingTimeLeft > 0}
-              className="h-9 px-4 text-sm font-medium rounded-md bg-accent text-accent-foreground hover:bg-accent-hover shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
-            >
-              Send
-            </button>
-
-            {!isRecording ? (
-              <button
-                onClick={startRecording}
-                disabled={isLoading || readingTimeLeft > 0}
-                className="h-9 px-4 text-sm font-medium rounded-md bg-muted ring-1 ring-border hover:bg-muted/80 transition-all duration-75 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1.5"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
-                </svg>
-                Record
-              </button>
-            ) : (
-              <button
-                onClick={handleSubmitAudio}
-                className="h-9 px-4 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 transition-all duration-75 active:scale-[0.98] flex items-center gap-1.5 animate-pulse"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <rect x="6" y="6" width="12" height="12" rx="2" />
-                </svg>
-                Stop & Send
-              </button>
-            )}
-          </div>
+          {recorder && (
+            <div className="flex gap-3 mt-3">
+              {!recorder.isRecording ? (
+                <button
+                  onClick={() => { stopAudio(); setTranscript(""); recorder.startRecording(); }}
+                  disabled={isLoading || readingTimeLeft > 0}
+                  className="h-9 px-4 text-sm font-medium rounded-md bg-accent text-accent-foreground hover:bg-accent-hover shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1.5"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                  </svg>
+                  Record Answer
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => { setTranscript(""); recorder.resetRecording(); }}
+                    className="h-9 px-4 text-sm font-medium rounded-md ring-1 ring-border hover:bg-muted transition-all duration-75 active:scale-[0.98] flex items-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                    </svg>
+                    Reset
+                  </button>
+                  <button
+                    onClick={handleExternalAudioSubmit}
+                    className="h-9 px-4 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 transition-all duration-75 active:scale-[0.98] flex items-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
+                    Stop & Send
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
