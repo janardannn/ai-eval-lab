@@ -85,6 +85,8 @@ export async function POST(
   } else if (phase === "domain") {
     config = session.assessment.domainConfig as unknown as PhaseConfig;
     nextPhase = "lab";
+  } else if (phase === "lab") {
+    return NextResponse.json({ eval: "stored" });
   } else {
     return NextResponse.json({ error: "not in Q&A phase" }, { status: 400 });
   }
