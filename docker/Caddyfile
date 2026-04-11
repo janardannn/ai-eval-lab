@@ -1,3 +1,7 @@
 {$DOMAIN:localhost} {
 	reverse_proxy web:3000
 }
+
+{$VNC_DOMAIN:vnc.localhost} {
+	reverse_proxy host.docker.internal:{$VNC_HOST_PORT:6080}
+}

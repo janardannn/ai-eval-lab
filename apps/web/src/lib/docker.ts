@@ -8,10 +8,13 @@ const docker = new Docker({ socketPath, version: "v1.47" });
 const KICAD_IMAGE = process.env.KICAD_IMAGE || "ai-eval-lab-kicad";
 const BACKEND_URL =
   process.env.CONTAINER_CALLBACK_URL || "http://host.docker.internal:3000";
+const PUBLIC_VNC_URL = process.env.PUBLIC_VNC_URL;
+const VNC_HOST_PORT = process.env.VNC_HOST_PORT;
 
 interface ContainerInfo {
   containerId: string;
   containerUrl: string;
+  internalUrl: string;
 }
 
 export async function startKicadContainer(
@@ -26,7 +29,9 @@ export async function startKicadContainer(
     ],
     ExposedPorts: { "6080/tcp": {} },
     HostConfig: {
-      PortBindings: { "6080/tcp": [{ HostPort: "" }] },
+      PortBindings: {
+        "6080/tcp": [{ HostPort: VNC_HOST_PORT || "" }],
+      },
       ExtraHosts: ["host.docker.internal:host-gateway"],
     },
   });
@@ -37,9 +42,13 @@ export async function startKicadContainer(
   const hostPort =
     info.NetworkSettings.Ports["6080/tcp"]?.[0]?.HostPort || "6080";
 
+  const internalUrl = `http://host.docker.internal:${hostPort}`;
+  const containerUrl = PUBLIC_VNC_URL || `http://localhost:${hostPort}`;
+
   return {
     containerId: container.id,
-    containerUrl: `http://localhost:${hostPort}`,
+    containerUrl,
+    internalUrl,
   };
 }
 

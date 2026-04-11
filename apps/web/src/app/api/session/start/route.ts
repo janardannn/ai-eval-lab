@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
     await setSessionState(examSession.id, { status: "provisioning" });
 
     try {
-      const { containerId, containerUrl } = await startKicadContainer(examSession.id);
-      const ready = await waitForContainer(containerUrl);
+      const { containerId, containerUrl, internalUrl } = await startKicadContainer(examSession.id);
+      const ready = await waitForContainer(internalUrl);
 
       if (!ready) {
         return NextResponse.json(
@@ -93,8 +93,8 @@ async function provisionQueued(sessionId: string) {
   await setSessionState(sessionId, { status: "provisioning" });
 
   try {
-    const { containerId, containerUrl } = await startKicadContainer(sessionId);
-    const ready = await waitForContainer(containerUrl);
+    const { containerId, containerUrl, internalUrl } = await startKicadContainer(sessionId);
+    const ready = await waitForContainer(internalUrl);
 
     if (!ready) {
       return NextResponse.json({ error: "container failed to start" }, { status: 500 });
