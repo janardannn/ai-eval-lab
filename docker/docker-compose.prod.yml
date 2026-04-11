@@ -30,6 +30,8 @@ services:
       - PUBLIC_VNC_URL=https://${VNC_DOMAIN}
       - VNC_HOST_PORT=${VNC_HOST_PORT:-6080}
       - MAX_CONTAINERS=${MAX_CONTAINERS:-1}
+      - AUTH_TRUST_HOST=true
+      - AUTH_URL=https://${DOMAIN}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     extra_hosts:
