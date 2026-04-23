@@ -1,5 +1,6 @@
 const CADDY_ADMIN = process.env.CADDY_ADMIN_URL || "http://caddy:2019";
 const VNC_BASE_DOMAIN = process.env.VNC_DOMAIN || "vnc.localhost";
+const CADDY_ORIGIN = process.env.CADDY_ADMIN_ORIGIN || "http://web";
 
 export function vncHostForSession(sessionId: string): string {
   return `s_${sessionId}.${VNC_BASE_DOMAIN}`;
@@ -31,7 +32,10 @@ export async function addVncRoute(sessionId: string, hostPort: string) {
     `${CADDY_ADMIN}/config/apps/http/servers/srv0/routes/0`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Origin: CADDY_ORIGIN,
+      },
       body: JSON.stringify(route),
     }
   );
@@ -45,6 +49,9 @@ export async function addVncRoute(sessionId: string, hostPort: string) {
 export async function removeVncRoute(sessionId: string) {
   const res = await fetch(`${CADDY_ADMIN}/id/vnc-${sessionId}`, {
     method: "DELETE",
+    headers: {
+      Origin: CADDY_ORIGIN,
+    },
   });
   if (!res.ok && res.status !== 404) {
     const body = await res.text().catch(() => "");
