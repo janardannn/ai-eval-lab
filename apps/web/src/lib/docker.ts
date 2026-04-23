@@ -1,4 +1,5 @@
 import Docker from "dockerode";
+import { addVncRoute, vncHostForSession } from "./caddy";
 
 const rawHost = process.env.DOCKER_HOST || "/var/run/docker.sock";
 const socketPath = rawHost.replace(/^unix:\/\//, "");
@@ -8,8 +9,6 @@ const docker = new Docker({ socketPath, version: "v1.47" });
 const KICAD_IMAGE = process.env.KICAD_IMAGE || "ai-eval-lab-kicad";
 const BACKEND_URL =
   process.env.CONTAINER_CALLBACK_URL || "http://host.docker.internal:3000";
-const PUBLIC_VNC_URL = process.env.PUBLIC_VNC_URL;
-const VNC_HOST_PORT = process.env.VNC_HOST_PORT;
 
 interface ContainerInfo {
   containerId: string;
@@ -30,7 +29,7 @@ export async function startKicadContainer(
     ExposedPorts: { "6080/tcp": {} },
     HostConfig: {
       PortBindings: {
-        "6080/tcp": [{ HostPort: VNC_HOST_PORT || "" }],
+        "6080/tcp": [{ HostPort: "" }],
       },
       ExtraHosts: ["host.docker.internal:host-gateway"],
     },
@@ -39,11 +38,20 @@ export async function startKicadContainer(
   await container.start();
 
   const info = await container.inspect();
-  const hostPort =
-    info.NetworkSettings.Ports["6080/tcp"]?.[0]?.HostPort || "6080";
+  const hostPort = info.NetworkSettings.Ports["6080/tcp"]?.[0]?.HostPort;
+  if (!hostPort) {
+    throw new Error("container started but no host port assigned");
+  }
 
   const internalUrl = `http://host.docker.internal:${hostPort}`;
-  const containerUrl = PUBLIC_VNC_URL || `http://localhost:${hostPort}`;
+
+  let containerUrl: string;
+  if (process.env.NODE_ENV === "production") {
+    await addVncRoute(sessionId, hostPort);
+    containerUrl = `https://${vncHostForSession(sessionId)}`;
+  } else {
+    containerUrl = `http://localhost:${hostPort}`;
+  }
 
   return {
     containerId: container.id,

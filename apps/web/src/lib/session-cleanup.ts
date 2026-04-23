@@ -1,10 +1,19 @@
 import { prisma } from "./db";
 import { redis, getSessionState, setSessionState, removeContainerMapping, popFromQueue } from "./redis";
 import { stopContainer } from "./docker";
+import { removeVncRoute } from "./caddy";
 
 export async function cleanupSession(sessionId: string) {
   const state = await getSessionState(sessionId);
   if (!state) return;
+
+  if (process.env.NODE_ENV === "production") {
+    try {
+      await removeVncRoute(sessionId);
+    } catch (err) {
+      console.error(`cleanup: failed to remove caddy route for ${sessionId}:`, err);
+    }
+  }
 
   if (state.containerId) {
     try {
@@ -23,12 +32,16 @@ export async function cleanupSession(sessionId: string) {
   await setSessionState(sessionId, { status: "completed", phase: "grading" });
   await redis.del(`heartbeat:${sessionId}`);
 
-  // Free capacity for next in queue
+  // Free capacity for next in queue (uses the same internal provisioning path as end route)
   const next = await popFromQueue();
   if (next) {
-    // Trigger provisioning for the next queued session
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/session/${next}/provision`, {
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/session/start`, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": process.env.INTERNAL_API_SECRET || "",
+      },
+      body: JSON.stringify({ _provisionQueued: next }),
     }).catch(() => {});
   }
 }

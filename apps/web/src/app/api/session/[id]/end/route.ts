@@ -8,6 +8,7 @@ import {
   popFromQueue,
 } from "@/lib/redis";
 import { stopContainer, extractFile } from "@/lib/docker";
+import { removeVncRoute } from "@/lib/caddy";
 import { requireSessionOwner } from "@/lib/session-auth";
 
 export async function POST(
@@ -37,6 +38,14 @@ export async function POST(
       });
     } catch (err) {
       console.error("failed to extract final file:", err);
+    }
+
+    if (process.env.NODE_ENV === "production") {
+      try {
+        await removeVncRoute(id);
+      } catch (err) {
+        console.error("failed to remove caddy route:", err);
+      }
     }
 
     try {
