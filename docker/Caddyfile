@@ -2,7 +2,9 @@
 	on_demand_tls {
 		ask http://web:3000/api/internal/tls-ok
 	}
-	admin 0.0.0.0:2019
+	admin 0.0.0.0:2019 {
+		origins localhost caddy web host.docker.internal 127.0.0.1
+	}
 }
 
 {$DOMAIN:localhost} {
