@@ -90,8 +90,7 @@ git pull
 cd docker
 export DOMAIN="$DOMAIN"
 export VNC_DOMAIN="$VNC_DOMAIN"
-export VNC_HOST_PORT=6080
-export MAX_CONTAINERS=1
+export MAX_CONTAINERS=3
 export POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
 docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml exec -T web npx prisma migrate deploy
