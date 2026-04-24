@@ -32,7 +32,7 @@ export async function addVncRoute(sessionId: string, target: string) {
   const res = await fetch(
     `${CADDY_ADMIN}/config/apps/http/servers/srv0/routes/0`,
     {
-      method: "POST",
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
         Origin: CADDY_ORIGIN,
