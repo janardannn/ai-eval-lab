@@ -15,15 +15,16 @@ interface CaddyRoute {
   }>;
 }
 
-export async function addVncRoute(sessionId: string, hostPort: string) {
+export async function addVncRoute(sessionId: string, target: string) {
   const host = vncHostForSession(sessionId);
+  const dial = target.includes(":") ? target : `host.docker.internal:${target}`;
   const route: CaddyRoute = {
     "@id": `vnc-${sessionId}`,
     match: [{ host: [host] }],
     handle: [
       {
         handler: "reverse_proxy",
-        upstreams: [{ dial: `host.docker.internal:${hostPort}` }],
+        upstreams: [{ dial }],
       },
     ],
   };

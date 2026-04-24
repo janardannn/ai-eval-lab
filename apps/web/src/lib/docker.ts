@@ -9,6 +9,7 @@ const docker = new Docker({ socketPath, version: "v1.47" });
 const KICAD_IMAGE = process.env.KICAD_IMAGE || "ai-eval-lab-kicad";
 const BACKEND_URL =
   process.env.CONTAINER_CALLBACK_URL || "http://host.docker.internal:3000";
+const COMPOSE_NETWORK = process.env.COMPOSE_NETWORK || "docker_default";
 
 interface ContainerInfo {
   containerId: string;
@@ -19,6 +20,8 @@ interface ContainerInfo {
 export async function startKicadContainer(
   sessionId: string
 ): Promise<ContainerInfo> {
+  const isProd = process.env.NODE_ENV === "production";
+
   const container = await docker.createContainer({
     Image: KICAD_IMAGE,
     Env: [
@@ -28,29 +31,37 @@ export async function startKicadContainer(
     ],
     ExposedPorts: { "6080/tcp": {} },
     HostConfig: {
-      PortBindings: {
-        "6080/tcp": [{ HostPort: "" }],
-      },
+      PortBindings: isProd ? {} : { "6080/tcp": [{ HostPort: "" }] },
       ExtraHosts: ["host.docker.internal:host-gateway"],
+      NetworkMode: isProd ? COMPOSE_NETWORK : undefined,
     },
   });
 
   await container.start();
 
   const info = await container.inspect();
-  const hostPort = info.NetworkSettings.Ports["6080/tcp"]?.[0]?.HostPort;
-  if (!hostPort) {
-    throw new Error("container started but no host port assigned");
-  }
-
-  const internalUrl = `http://host.docker.internal:${hostPort}`;
 
   let containerUrl: string;
-  if (process.env.NODE_ENV === "production") {
-    await addVncRoute(sessionId, hostPort);
+  let internalUrl: string;
+
+  if (isProd) {
+    const networks = info.NetworkSettings.Networks;
+    const containerIp = networks[COMPOSE_NETWORK]?.IPAddress;
+    if (!containerIp) {
+      throw new Error(
+        `container has no IP on compose network ${COMPOSE_NETWORK}`
+      );
+    }
+    await addVncRoute(sessionId, `${containerIp}:6080`);
     containerUrl = `https://${vncHostForSession(sessionId)}`;
+    internalUrl = `http://${containerIp}:6080`;
   } else {
+    const hostPort = info.NetworkSettings.Ports["6080/tcp"]?.[0]?.HostPort;
+    if (!hostPort) {
+      throw new Error("container started but no host port assigned");
+    }
     containerUrl = `http://localhost:${hostPort}`;
+    internalUrl = `http://host.docker.internal:${hostPort}`;
   }
 
   return {
