@@ -28,6 +28,7 @@ services:
       - NEXT_PUBLIC_APP_URL=https://${DOMAIN}
       - VNC_DOMAIN=${VNC_DOMAIN}
       - CADDY_ADMIN_URL=http://caddy:2019
+      - CONTAINER_CALLBACK_URL=${CONTAINER_CALLBACK_URL:-http://web:3000}
       - MAX_CONTAINERS=${MAX_CONTAINERS:-3}
       - AUTH_TRUST_HOST=true
       - AUTH_URL=https://${DOMAIN}
