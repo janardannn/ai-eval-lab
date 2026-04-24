@@ -3,7 +3,7 @@ const VNC_BASE_DOMAIN = process.env.VNC_DOMAIN || "vnc.localhost";
 const CADDY_ORIGIN = process.env.CADDY_ADMIN_ORIGIN || "http://web";
 
 export function vncHostForSession(sessionId: string): string {
-  return `s_${sessionId}.${VNC_BASE_DOMAIN}`;
+  return `s-${sessionId}.${VNC_BASE_DOMAIN}`;
 }
 
 interface CaddyRoute {

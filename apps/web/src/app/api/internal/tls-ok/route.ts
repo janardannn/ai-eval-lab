@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const domain = req.nextUrl.searchParams.get("domain");
   if (!domain) return new NextResponse(null, { status: 400 });
 
-  const pattern = new RegExp(`^s_([a-zA-Z0-9]+)\\.${escapeRegex(VNC_BASE)}$`);
+  const pattern = new RegExp(`^s-([a-zA-Z0-9]+)\\.${escapeRegex(VNC_BASE)}$`);
   const match = domain.match(pattern);
   if (!match) return new NextResponse(null, { status: 403 });
 
