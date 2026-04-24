@@ -56,6 +56,29 @@ Return a JSON object with:
 - qaAnalysis: evaluation of the student's Q&A responses
 - overallReport: comprehensive evaluation summary`;
 
+/** LLM JSON may return nested objects for text fields; Prisma expects strings. */
+function gradeTextField(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object") return JSON.stringify(value, null, 2);
+  return value == null ? "" : String(value);
+}
+
+function normalizeGradeResult(raw: Partial<GradeResult> & Record<string, unknown>): GradeResult {
+  const scores = raw.checkpointScores;
+  const checkpointScores: Record<string, number> =
+    scores && typeof scores === "object" && !Array.isArray(scores)
+      ? (scores as Record<string, number>)
+      : {};
+
+  return {
+    verdict: typeof raw.verdict === "string" ? raw.verdict : "neutral",
+    checkpointScores,
+    timelineAnalysis: gradeTextField(raw.timelineAnalysis),
+    qaAnalysis: gradeTextField(raw.qaAnalysis),
+    overallReport: gradeTextField(raw.overallReport),
+  };
+}
+
 export async function gradeSession(
   snapshots: Snapshot[],
   qaPairs: QAPair[],
@@ -82,5 +105,9 @@ Last: ${JSON.stringify(snapshots[snapshots.length - 1]?.data)}
 ## Q&A Pairs
 ${qaPairs.map((qa) => `[${qa.phase}] Q: ${qa.question}\nA: ${qa.answer}`).join("\n\n")}`;
 
-  return jsonCompletion<GradeResult>(SYSTEM_PROMPT, userPrompt);
+  const raw = await jsonCompletion<Partial<GradeResult> & Record<string, unknown>>(
+    SYSTEM_PROMPT,
+    userPrompt
+  );
+  return normalizeGradeResult(raw);
 }

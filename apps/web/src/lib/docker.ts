@@ -21,8 +21,10 @@ export async function startKicadContainer(
   sessionId: string
 ): Promise<ContainerInfo> {
   const isProd = process.env.NODE_ENV === "production";
+  const containerName = `kicad-${sessionId}`;
 
   const container = await docker.createContainer({
+    name: containerName,
     Image: KICAD_IMAGE,
     Env: [
       `SESSION_ID=${sessionId}`,
@@ -46,15 +48,12 @@ export async function startKicadContainer(
 
   if (isProd) {
     const networks = info.NetworkSettings.Networks;
-    const containerIp = networks[COMPOSE_NETWORK]?.IPAddress;
-    if (!containerIp) {
-      throw new Error(
-        `container has no IP on compose network ${COMPOSE_NETWORK}`
-      );
+    if (!networks[COMPOSE_NETWORK]) {
+      throw new Error(`container not attached to network ${COMPOSE_NETWORK}`);
     }
-    await addVncRoute(sessionId, `${containerIp}:6080`);
+    await addVncRoute(sessionId, `${containerName}:6080`);
     containerUrl = `https://${vncHostForSession(sessionId)}`;
-    internalUrl = `http://${containerIp}:6080`;
+    internalUrl = `http://${containerName}:6080`;
   } else {
     const hostPort = info.NetworkSettings.Ports["6080/tcp"]?.[0]?.HostPort;
     if (!hostPort) {
