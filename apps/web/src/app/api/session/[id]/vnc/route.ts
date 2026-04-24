@@ -16,5 +16,5 @@ export async function GET(
     return NextResponse.json({ error: "container not ready" }, { status: 404 });
   }
 
-  return NextResponse.redirect(`${state.containerUrl}/vnc.html?autoconnect=true&resize=scale&quality=7&compression=2&shared=true&reconnect=true&reconnect_delay=1000`);
+  return NextResponse.redirect(`${state.containerUrl}/vnc.html?autoconnect=true&resize=scale`);
 }
